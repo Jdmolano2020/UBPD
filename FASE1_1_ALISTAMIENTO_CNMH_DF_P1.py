@@ -610,6 +610,7 @@ valid_days = list(map(str, range(1, 32)))
 
 cnmh['anio_nacimiento'] = np.where(cnmh['anio_nacimiento'].isin(valid_years),
                                    cnmh['anio_nacimiento'], np.nan)
+
 cnmh['mes_nacimiento'] = np.where(cnmh['mes_nacimiento'].isin(valid_months),
                                   cnmh['mes_nacimiento'], np.nan)
 cnmh['dia_nacimiento'] = np.where(cnmh['dia_nacimiento'].isin(valid_days),

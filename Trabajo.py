@@ -1,82 +1,138 @@
+###################################################
+# Autor: Esneyder
+# Titulo: Homologacion de la fuente de información de la V_CNMH_SE
+# Fecha: 21/06/2023
+##
+#
+
+###################################################
+# Cambia el path base intentando leer desde los parametros de invocacion
+
+import sys
 import os
-from sqlalchemy import create_engine
 import pandas as pd
+import hashlib
+import unicodedata
+import re
+from datetime import datetime
+from sqlalchemy import create_engine
+import numpy as np
+import time
+import yaml
 
+# creacion de las funciones requeridas
+# creacion de las funciones requeridas
+def funcion_hash(row):
+    return hashlib.sha1(str(row).encode()).hexdigest()
 
-def concat_values(*args):
-    return ' '.join(arg for arg in args if arg.strip())
+# Función de limpieza
+def clean_func(x, na_values):
+    # Transliterar a ASCII y convertir a mayúsculas
+    x1 = x.str.encode('ascii', 'ignore').str.decode('ascii').str.upper()
+    # Quitar espacios al inicio y al final
+    x2 = x1.str.strip()
+    # Reemplazar valores NA con NaN
+    x2.replace(na_values, np.nan, inplace=True, regex=True)
+    # Dejar solo caracteres alfanuméricos y espacios
+    x3 = x2.str.replace(r'[^A-Z0-9 ]', ' ')
+    # Quitar espacios adicionales
+    x4 = x3.str.replace(r'\s+', ' ')
+    return x4
 
-
-# parametros programa stata
-parametro_ruta = ""
-parametro_cantidad = ""
-# Establecer la ruta de trabajo
-ruta = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso" # Cambia esto según tu directorio
-
-# Verificar si `1` es una cadena vacía y ajustar el directorio de trabajo
-# en consecuencia
-if parametro_ruta == "":
-    os.chdir(ruta)
+# Define una función para limpiar nombres y apellidos
+def limpiar_nombres_apellidos(nombre_completo):
+    if nombre_completo in ["PERSONA SIN IDENTIFICAR", "NA"]:
+        return None, None, None, None
+    
+    # Divide el nombre completo en tokens
+    tokens = re.split(r'\s+', nombre_completo.strip())
+    
+    primer_nombre, segundo_nombre, primer_apellido, segundo_apellido = None, None, None, None
+    
+    # Elimina preposiciones
+    preposiciones = ["DE", "DEL", "DE LAS", "DE LA", "DE LOS", "VAN", "LA", "VIUDA DE", "VIUDA", "SAN", "DA"]
+    tokens = [token for token in tokens if token not in preposiciones]
+    
+    if len(tokens) == 4:
+        primer_nombre, segundo_nombre, primer_apellido, segundo_apellido = tokens
+    elif len(tokens) == 3:
+        primer_nombre, primer_apellido, segundo_apellido = tokens
+    elif len(tokens) == 2:
+        primer_nombre, primer_apellido = tokens
+    
+    return primer_nombre, segundo_nombre, primer_apellido, segundo_apellido
+# Limpiar todas las variables
+# =============================================================================
+# for variable in list(locals()):
+#     del locals()[variable]
+# =============================================================================
+# Obtener los argumentos de la línea de comandos
+args = sys.argv
+if len(args) > 1:
+    # Detecta si se proporciona la ruta base como argumento
+    ruta_base = args[1]
 else:
-    os.chdir(parametro_ruta)
+    # En caso contrario, define una ruta por defecto
+    ruta_base = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso"
+# Cambiar el directorio de trabajo a la ruta base
+os.chdir(ruta_base)
+n_sample = ""
+if len(args) > 2:
+    # Detecta si se proporciona el número de muestras como argumento
+    n_sample = args[2]
+# 32
+# Establecer la ruta base
+ruta_base = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso"
 
-# Borrar el archivo "fuentes secundarias\V_JEP_CEV_CA_DESAPARICION.dta"
-archivo_a_borrar = os.path.join("fuentes secundarias",
-                                "V_JEP_CEV_CA_DESAPARICION.dta")
-if os.path.exists(archivo_a_borrar):
-    os.remove(archivo_a_borrar)
-# Configurar la codificación Unicode
-encoding = "ISO-8859-1"
-# 1. Conexión al repositorio de información (Omitir esta sección en Python)
-# 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
-# Establecer la conexión ODBC
+# Obtener la fecha y hora actual
+fecha_inicio = datetime.now()
+# 88
+# Lectura del archivo DIVIPOLA
+dane = pd.read_stata("fuentes secundarias\\tablas complementarias\\DIVIPOLA_municipios_122021.dta")
+# Renombrar columnas
+dane = dane.rename(columns={
+    'codigo_dane_departamento': 'codigo_dane_departamento',
+    'departamento': 'departamento_ocurrencia',
+    'codigo_dane_municipio': 'codigo_dane_municipio',
+    'municipio': 'municipio_ocurrencia'
+})
+# Eliminar la columna 'categoria_divipola'
+dane = dane.drop(columns=['categoria_divipola'])
+# Agregar nuevas filas
+nuevas_filas = pd.DataFrame({
+    'codigo_dane_departamento': ["94", "99", "99"],
+    'departamento_ocurrencia': ["GUAINÍA", "VICHADA", "VICHADA"],
+    'codigo_dane_municipio': ["94663", "99572", "99760"],
+    'municipio_ocurrencia': ["MAPIRIPANA", "SANTA RITA", "SAN JOSÉ DE OCUNE"]
+})
+dane = pd.concat([dane, nuevas_filas], ignore_index=True)
+# Crear DataFrame 'dane_depts' con las columnas 'codigo_dane_departamento'
+# y 'departamento_ocurrencia' únicas
+dane_depts = dane[['codigo_dane_departamento', 'departamento_ocurrencia']].drop_duplicates()
+# Configurar la conexión a la base de datos (asegúrate de proporcionar los detalles correctos)
+# db_url = "mssql+pyodbc://orquestacion.universo:Ubpd2022*@172.16.10.10/UNIVERSO_PDD?driver=ODBC+Driver+17+for+SQL+Server"
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)
-# JEP-CEV: Resultados integración de información (CA_DESAPARICION)
-# Cargue de datos
-query = "EXECUTE [dbo].[CONSULTA_V_JEP_CEV]"
-df = pd.read_sql_query(query, engine)
-# Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
-if parametro_cantidad != "":
-    limite = int(parametro_cantidad)
-    df = df[df.index < limite]
-# Guardar el DataFrame en un archivo
-archivo_csv = os.path.join("fuentes secundarias",
-                           "V_JEP_CEV_CA_DESAPARICION.csv")
-df.to_csv(archivo_csv, index=False)
-# Cambiar directorio de trabajo
-os.chdir(os.path.join(ruta, "fuentes secundarias"))
-# Traducir la codificación Unicode
-archivo_a_traducir = "V_JEP_CEV_CA_DESAPARICION.dta"
-archivo_utf8 = archivo_a_traducir.replace(".dta", "_utf8.dta")
-if os.path.exists(archivo_a_traducir):
-    os.system(
-        f'unicode translate "{archivo_a_traducir}" "{archivo_utf8}" transutf8')
-    os.remove(archivo_a_traducir)
-# Crear un identificador de registro
-df = pd.read_stata(archivo_utf8, encoding=encoding)
-df.columns = df.columns.str.lower()
-df['duplicates_reg'] = df.duplicated()
-df = df[~df['duplicates_reg']]
-# Más manipulación de datos (Omitir esta sección en Python)
-# No requiere ordenar el datafrane
-# Origen de los datos
-df['tabla_origen'] = "JEP_CEV"
-# Código de identificación de la tabla de origen
-df.rename(columns={'match_group_id': 'codigo_unico_fuente'}, inplace=True)
-# Guardar el DataFrame final en un archivo
-df.to_stata(archivo_utf8, write_index=False)
-# Cambiar el nombre de las columnas a minúsculas
-df.columns = df.columns.str.lower()
+# Crear la consulta SQL
+n_sample_p = f"top({n_sample})" if n_sample != "" else ""
+query = "EXECUTE [dbo].[CONSULTA_V_CNMH_SE]"
+# Ejecutar la consulta y cargar los datos en un DataFrame
+cnmh = pd.read_sql(query, engine)
+# Obtener el número de filas en el DataFrame cnmh
+nrow_cnmh = len(cnmh)
+# Obtener el número de casos y personas
+n_casos = pd.read_sql("select count(*) from [dbo].[V_CNMH_SE_C]", engine).iloc[0, 0]
+n_personas = pd.read_sql("select count(*) from [dbo].[V_CNMH_SE]", engine).iloc[0, 0]
+# Obtener el número de casos sin personas
+n_casos_sin_personas = pd.read_sql("select count(*) from [dbo].[V_CNMH_SE_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])", engine).iloc[0, 0]
+# Obtener los casos sin personas
+casos_sin_personas = pd.read_sql("select * from [dbo].[V_CNMH_SE_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_SE_C])", engine)
+# Obtener el número de personas sin casos
+n_personas_sin_casos = pd.read_sql("select count(*) from [dbo].[V_CNMH_SE] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_SE])", engine).iloc[0, 0]
+# Limpieza de nombres de columnas (clean_names no es necesario en pandas)
+cnmh.columns = cnmh.columns.str.lower()
+# Creación del ID único para cada registro
+cnmh['id_registro'] = cnmh.apply(funcion_hash, axis=1)
+cnmh['tabla_origen'] = "CNMH_SE"
 
-# 1. Seleccionar variables que serán homologadas para la integración
-variables_a_mantener = [
-    'nombre_1', 'nombre_2', 'apellido_1', 'apellido_2',
-    'nombre_apellido_completo', 'cedula', 'otro_documento', 'edad',
-    'yy_nacimiento', 'mm_nacimiento', 'dd_nacimiento', 'sexo', 'edad',
-    'yy_nacimiento', 'mm_nacimiento', 'dd_nacimiento', 'etnia',
-    'dept_code_hecho', 'muni_code_hecho', 'yy_hecho', 'ymd_hecho',
-    'tipohecho', 'perp_*', 'codigo_unico_fuente', 'in*', 'narrativo_hechos',
-    'tabla_origen'
-]
-df = df[variables_a_mantener]
+

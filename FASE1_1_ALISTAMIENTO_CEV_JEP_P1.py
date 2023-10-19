@@ -1,17 +1,22 @@
 import os
-import pyodbc
+from sqlalchemy import create_engine
 import pandas as pd
-
+import numpy as np
+import re
 
 def concat_values(*args):
     return ' '.join(arg for arg in args if arg.strip())
 
+def clean_text(text):
+    return re.sub(r'[^A-Z0-9 ]', '', text.upper())
+
+# Asegúrate de importar la biblioteca pandas antes de usar df (DataFrame) y su columna 'var'
 
 # parametros programa stata
 parametro_ruta = ""
 parametro_cantidad = ""
 # Establecer la ruta de trabajo
-ruta = "E:\\OrquestadorNatalia"  # Cambia esto según tu directorio
+ruta = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso" # Cambia esto según tu directorio
 
 # Verificar si `1` es una cadena vacía y ajustar el directorio de trabajo
 # en consecuencia
@@ -30,31 +35,33 @@ encoding = "ISO-8859-1"
 # 1. Conexión al repositorio de información (Omitir esta sección en Python)
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
-connection_string = "DSN=ORQUESTADOR;UID=orquestacion.universo;PWD=Ubpd2022*"
-connection = pyodbc.connect(connection_string)
+db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
+engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos
-query = "select * from orq_salida.consolidado_jep"
-df = pd.read_sql_query(query, connection)
+query = "EXECUTE [dbo].[CONSULTA_V_JEP_CEV]"
+
+df = pd.read_sql_query(query, engine)
 # Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
 if parametro_cantidad != "":
     limite = int(parametro_cantidad)
     df = df[df.index < limite]
 # Guardar el DataFrame en un archivo
-archivo_csv = os.path.join("fuentes secundarias",
+archivo_csv = os.path.join("Fuentes secundarias",
                            "V_JEP_CEV_CA_DESAPARICION.csv")
 df.to_csv(archivo_csv, index=False)
+# # validar envi a un archivo para cambiar en encoding
 # Cambiar directorio de trabajo
-os.chdir(os.path.join(ruta, "fuentes secundarias"))
+# #os.chdir(os.path.join(ruta, "Fuentes secundarias"))
 # Traducir la codificación Unicode
-archivo_a_traducir = "V_JEP_CEV_CA_DESAPARICION.dta"
-archivo_utf8 = archivo_a_traducir.replace(".dta", "_utf8.dta")
-if os.path.exists(archivo_a_traducir):
-    os.system(
-        f'unicode translate "{archivo_a_traducir}" "{archivo_utf8}" transutf8')
-    os.remove(archivo_a_traducir)
+# #archivo_a_traducir = "V_JEP_CEV_CA_DESAPARICION.csv"
+# #archivo_utf8 = archivo_a_traducir.replace(".csv", "_utf8.csv")
+# #if os.path.exists(archivo_a_traducir):
+# #    os.system(
+# #        f'unicode translate "{archivo_a_traducir}" "{archivo_utf8}" transutf8')
+# #    os.remove(archivo_a_traducir)
 # Crear un identificador de registro
-df = pd.read_stata(archivo_utf8)
+df = pd.read_csv(archivo_csv)
 df.columns = df.columns.str.lower()
 df['duplicates_reg'] = df.duplicated()
 df = df[~df['duplicates_reg']]
@@ -65,7 +72,7 @@ df['tabla_origen'] = "JEP_CEV"
 # Código de identificación de la tabla de origen
 df.rename(columns={'match_group_id': 'codigo_unico_fuente'}, inplace=True)
 # Guardar el DataFrame final en un archivo
-df.to_stata(archivo_utf8, write_index=False)
+# #df.to_stata(archivo_utf8, write_index=False)
 # Cambiar el nombre de las columnas a minúsculas
 df.columns = df.columns.str.lower()
 
@@ -76,19 +83,17 @@ variables_a_mantener = [
     'yy_nacimiento', 'mm_nacimiento', 'dd_nacimiento', 'sexo', 'edad',
     'yy_nacimiento', 'mm_nacimiento', 'dd_nacimiento', 'etnia',
     'dept_code_hecho', 'muni_code_hecho', 'yy_hecho', 'ymd_hecho',
-    'tipohecho', 'perp_*', 'codigo_unico_fuente', 'in*', 'narrativo_hechos',
-    'tabla_origen'
+    'tipohecho', 'perp_agentes_estatales', 'perp_grupos_posdesmv_paramilitar',
+    'perp_paramilitares', 'perp_guerrilla_eln', 'perp_guerrilla_farc',
+    'perp_guerrilla_otra', 'perp_otro', 'codigo_unico_fuente',
+    'in_ruv', 'in_vp_das', 'in_urt', 'in_uph', 'in_up', 'in_sindicalistas',
+    'in_sijyp', 'in_ponal', 'in_pgn', 'in_personeria', 'in_paislibre',
+    'in_onic', 'in_oacp', 'in_mindefensa', 'in_jmp', 'in_inml', 'in_icbf',
+    'in_forjandofuturos', 'in_fgn', 'in_ejercito', 'in_credhos', 'in_conase',
+    'in_cnmh', 'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
+    'in_cceeu', 'in_caribe', 'narrativo_hechos',  'tabla_origen'
 ]
-df = df[variables_a_mantener]
-# 2. Normalización de los campos de texto
-# revisar ajustes reeplazo caracteres especiales
-
-
-def is_valid_character(char): return (ord(char) == 32) or \
-    (48 <= ord(char) <= 57) or \
-    (65 <= ord(char) <= 90) or \
-    (ord(char) == 209)
-
+# #df = df[variables_a_mantener]
 
 cols_a_normalizar = ['sexo', 'etnia', 'nombre_1', 'nombre_apellido_completo',
                      'nombre_2', 'apellido_1', 'apellido_2', 'tipohecho']
@@ -104,7 +109,11 @@ for col in cols_a_normalizar:
     df[col] = df[col].str.replace("   ", " ")
     df[col] = df[col].str.replace("  ", " ")
     df[col] = df[col].str.strip()
-    df[col] = ''.join(filter(is_valid_character, df[col]))
+
+    for i in range(0, 210):
+        if (i != 32) and (i < 48 or i > 57) and (i < 65 or i > 90) and i != 209:
+            char_to_remove = chr(i)
+            df[col] = df[col].str.replace(char_to_remove, "", regex=True)
     df[col].replace(["NO APLICA", "NULL", "ND", "NA", "NR",
                      "SIN INFORMACION", "NO SABE", "DESCONOCIDO",
                      "POR DEFINIR", "SIN ESTABLECER"], "", inplace=True)
@@ -113,31 +122,37 @@ df['pais_ocurrencia'] = "COLOMBIA"
 df['codigo_dane_departamento'] = df['dept_code_hecho'].apply(
     lambda x: str(int(x)).zfill(2) if not pd.isna(x) else "")
 df.drop(columns=['dept_code_hecho'], inplace=True)
-df = df.merge(pd.read_stata("fuentes secundarias/tablas complementarias/DIVIPOLA_departamentos_122021.dta")
-              [['codigo_dane_departamento', 'departamento']],
-              on='codigo_dane_departamento', how='left')
-df.rename(columns={'departamento': 'departamento_ocurrencia'}, inplace=True)
-df.drop(columns=['_m'], inplace=True)
+
 df['codigo_dane_municipio'] = df['muni_code_hecho'].apply(
     lambda x: str(int(x)).zfill(5) if not pd.isna(x) else "")
 df.drop(columns=['muni_code_hecho'], inplace=True)
-df = df.merge(pd.read_stata("fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
-              [['codigo_dane_municipio', 'municipio']],
-              on='codigo_dane_municipio', how='left')
-df.rename(columns={'municipio': 'municipio_ocurrencia'}, inplace=True)
-df.drop(columns=['_merge'], inplace=True)
-df.dropna(subset=['codigo_dane_municipio'], inplace=True)
+
+dane = pd.read_stata(
+    "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
+
+df = pd.merge(df, dane, how='left', left_on=['codigo_dane_departamento', 'codigo_dane_municipio'],
+                right_on=['codigo_dane_departamento', 'codigo_dane_municipio'])
+
+df.rename(columns={'departamento': 'departamento_ocurrencia'}, inplace=True)
+
 # Fecha de ocurrencia
+df['ymd_hecho'] = df['ymd_hecho'].astype(str)
 df['fecha_ocur_anio'] = df['ymd_hecho'].str[0:4]
 df['fecha_ocur_mes'] = df['ymd_hecho'].str[4:6]
 df['fecha_ocur_dia'] = df['ymd_hecho'].str[6:8]
 df.rename(columns={'ymd_hecho': 'fecha_desaparicion'}, inplace=True)
-df['mm_hecho'] = pd.to_numeric(df['fecha_ocur_mes'], errors='coerce')
-df['dd_hecho'] = pd.to_numeric(df['fecha_ocur_dia'], errors='coerce')
-df['fecha_desaparicion_dtf'] = pd.to_datetime(df[['mm_hecho', 'dd_hecho',
-                                                  'fecha_ocur_anio']])
-df['fecha_desaparicion_dtf'] = df['fecha_desaparicion_dtf'].dt.strftime('%d')
-df.drop(['dd_hecho', 'mm_hecho', 'fecha_ocur_anio'], axis=1, inplace=True)
+
+df['fecha_ocur_mes'] = df['fecha_ocur_mes'].fillna("0")
+df['fecha_ocur_dia'] = df['fecha_ocur_dia'].fillna("0")
+
+df['mm_hecho'] = df['fecha_ocur_mes']
+df['dd_hecho'] = df['fecha_ocur_dia']
+
+df['fecha_hecho_0'] = df['dd_hecho'] + '-' + df['mm_hecho'] + '-' + df['fecha_ocur_anio']
+df['fecha_desaparicion_dtf'] = pd.to_datetime(df['fecha_hecho_0'], format="%d-%m-%Y", errors='coerce')
+# #df['fecha_desaparicion_dtf'] = df['fecha_desaparicion_dtf'].dt.strftime('%d')
+
+# #df.drop(['dd_hecho', 'mm_hecho', 'fecha_ocur_anio'], axis=1, inplace=True)
 # Presuntos responsables
 df.rename(
     columns={
@@ -149,9 +164,10 @@ df.rename(
         'perp_guerrilla_otra': 'pres_resp_guerr_otra',
         'perp_otro': 'pres_resp_otro'},
     inplace=True)
-df.loc[(df['perp_guerrilla'] == 1) & (df['pres_resp_guerr_otra'] == 0),
-       'pres_resp_guerr_otra'] = df['perp_guerrilla']
-df.drop(['perp_guerrilla'], axis=1, inplace=True)
+
+df['pres_resp_guerr_otra'] = np.where(
+    ((df['perp_guerrilla'] == 1.0)  &  (df['pres_resp_guerr_otra'] == 0.0)),1,0)
+
 # Tipo de hecho
 df['TH_DF'] = df['tipohecho'].str.contains('DESAPARICION').astype(int)
 df['TH_SE'] = df['tipohecho'].str.contains('SECUESTRO').astype(int)
@@ -160,6 +176,10 @@ df.drop(['tipohecho'], axis=1, inplace=True)
 # Relato
 df.rename(columns={'narrativo_hechos': 'descripcion_relato'}, inplace=True)
 df['descripcion_relato'] = df['descripcion_relato'].str.upper()
+
+th_df_counts = df["TH_DF"].value_counts()
+th_se_counts = df["TH_SE"].value_counts()
+th_ru_counts = df["TH_RU"].value_counts()
 
 # Datos sobre las personas dadas por desparecidas
 # Nombres y apellidos
@@ -193,6 +213,12 @@ for columna in columnas_a_verificar:
 condicion = (df['primer_apellido'] == "") & (df['segundo_apellido'] != "")
 df.loc[condicion, 'primer_apellido'] = df['segundo_apellido']
 df.loc[condicion, 'segundo_apellido'] = ""
+
+df['primer_nombre'] = df['primer_nombre'].fillna('')
+df['primer_apellido'] = df['primer_apellido'].fillna('')
+df['segundo_nombre'] = df['segundo_nombre'].fillna('')
+df['segundo_apellido'] = df['segundo_apellido'].fillna('')
+
 # Validación de la variable "nombre completo"
 df['nombre_completo_'] = df.apply(lambda row: concat_values(
     row['primer_nombre'], row['segundo_nombre'],
@@ -203,31 +229,29 @@ df['nombre_completo_'] = df['nombre_completo_'].str.replace('  ', ' ')
 # Renombrar la columna final
 df.rename(columns={'nombre_completo_': 'nombre_completo'}, inplace=True)
 
-# 196
 # Documento
 # Eliminar símbolos y caracteres especiales
-df['documento'] = ''.join(filter(is_valid_character, df['cedula'].str.upper()))
+df['cedula'] = df['cedula'].astype(str)
+df['cedula'] = df['cedula'].fillna('')
+df['documento'] = df['cedula'].apply(clean_text)
 # Eliminar cadenas de texto sin números
 for i in range(48, 58):
     char = chr(i)
-    df['documento'] = df['documento'].str.replace(char, '')
+    df['documento'] = df['documento'].str.replace(char, '',regex=True)
 # Eliminar cadenas complejas de texto tipo anotaciones
 for i in range(256):
     char = chr(i)
     if char not in "0123456789":
-        df['documento'] = df.apply(
-            lambda row: row['documento'].replace(
-                char, ''))
+        df['documento'] = df['documento'].str.replace(char, '',regex=True)
+        
 # Eliminar registros de documentos de identificación iguales a '0'
-df = df[df['documento'] != '0']
+# #df = df[df['documento'] != '0']
 # Limpiar y eliminar espacios adicionales
 df['documento'] = df['documento'].str.strip()
 df['documento'] = df['documento'].str.replace('   ', ' ')
 df['documento'] = df['documento'].str.replace('  ', ' ')
 # Eliminar columnas temporales
-df.drop(columns=['cedula'], inplace=True)
-
-# 229
+# df.drop(columns=['cedula'], inplace=True)
 # Transformar la columna 'sexo'
 df['sexo'].replace({'OTRO': 'INTERSEX'}, inplace=True)
 # Transformar la columna 'iden_pertenenciaetnica' y renombrarla
@@ -237,30 +261,52 @@ df['etnia'].replace({'MESTIZO': 'NINGUNA', 'ROM': 'RROM'}, inplace=True)
 # 237
 # Fecha de nacimiento
 # Reemplazar valores fuera de rango con NaN
+
 df.loc[df['yy_nacimiento'] < 1900, 'yy_nacimiento'] = None
+df.loc[df['yy_nacimiento'].isna(), 'yy_nacimiento'] = None
+
+df.loc[df['yy_nacimiento'].astype(float) < 1900, 'yy_nacimiento'] = None
+
 df.loc[(df['mm_nacimiento'] < 1) | (df['mm_nacimiento'] > 12),
        'mm_nacimiento'] = None
 df.loc[(df['dd_nacimiento'] < 1) | (df['dd_nacimiento'] > 31),
        'dd_nacimiento'] = None
 # Crear la columna 'fecha_nacimiento_dtf'
-df['fecha_nacimiento_dtf'] = pd.to_datetime(df[['yy_nacimiento',
-                                                'mm_nacimiento',
-                                                'dd_nacimiento']],
-                                            errors='coerce')
-df['fecha_nacimiento_dtf'] = df['fecha_nacimiento_dtf'].dt.strftime('%d')
+
+df['mm_nacimiento'] = df['mm_nacimiento'].fillna("0")
+df['dd_nacimiento'] = df['dd_nacimiento'].fillna("0")
+df['yy_nacimiento'] = df['yy_nacimiento'].fillna("0")
+
+df['yy_nacimiento'] = df['yy_nacimiento'].astype(int)
+df['dd_nacimiento'] = df['dd_nacimiento'].astype(int)
+df['mm_nacimiento'] = df['mm_nacimiento'].astype(int)
+df['yy_nacimiento'] = df['yy_nacimiento'].astype(str)
+df['dd_nacimiento'] = df['dd_nacimiento'].astype(str)
+df['mm_nacimiento'] = df['mm_nacimiento'].astype(str)
+
+
+df['fecha_nacimiento_0'] = df['dd_nacimiento'] + '-' + df['mm_nacimiento'] + '-' + df['yy_nacimiento']
+df['fecha_nacimiento_dtf'] = pd.to_datetime(df['fecha_nacimiento_0'], format="%d-%m-%Y", errors='coerce')
+
 # Crear las columnas 'anio_nacimiento', 'mes_nacimiento' y 'dia_nacimiento'
 df['anio_nacimiento'] = df['yy_nacimiento'].astype(str).str.zfill(4)
 df['mes_nacimiento'] = df['mm_nacimiento'].astype(str).str.zfill(2)
 df['dia_nacimiento'] = df['dd_nacimiento'].astype(str).str.zfill(2)
+
+df['anio_nacimiento'] = df['anio_nacimiento'].fillna("0")
+df['mes_nacimiento'] = df['mes_nacimiento'].fillna("0")
+df['dia_nacimiento'] = df['dia_nacimiento'].fillna("0")
+
 # Crear la columna 'fecha_nacimiento' mediante concatenación
-df['fecha_nacimiento'] = df['anio_nacimiento'] + \
-    df['mes_nacimiento'] + df['dia_nacimiento']
+df['fecha_nacimiento_0'] = df['dia_nacimiento'] + '-' + df['mes_nacimiento'] + '-' + df['anio_nacimiento']
+df['fecha_nacimiento'] = pd.to_datetime(df['fecha_nacimiento_0'], format="%d-%m-%Y", errors='coerce')
+
 # Filtrar las filas donde todas las columnas tienen valores
-df = df[(df['anio_nacimiento'] != '') & (
-    df['mes_nacimiento'] != '') & (df['dia_nacimiento'] != '')]
+# #df = df[(df['anio_nacimiento'] != '') & (
+# #   df['mes_nacimiento'] != '') & (df['dia_nacimiento'] != '')]
 # Eliminar las columnas temporales
-df.drop(columns=['yy_nacimiento', 'mm_nacimiento', 'dd_nacimiento'],
-        inplace=True)
+# #df.drop(columns=['yy_nacimiento', 'mm_nacimiento', 'dd_nacimiento'],
+# #        inplace=True)
 # 258
 # Edad
 # Validación de rango
@@ -272,6 +318,7 @@ df['edad_desaparicion_est'] = (
         df['fecha_nacimiento_dtf'].dt.year * 12 + df['fecha_nacimiento_dtf'].dt.month)) // 12
 # Calcular la diferencia absoluta entre 'edad' y 'edad_desaparicion_est'
 df['dif_edad'] = abs(df['edad_desaparicion_est'] - df['edad'])
+
 # Crear la columna 'inconsistencia_fechas'
 # en función de las condiciones especificadas
 df['inconsistencia_fechas'] = (
@@ -284,9 +331,9 @@ df.loc[(df['fecha_nacimiento_dtf'] == df['fecha_desaparicion_dtf']) &
        (df['fecha_nacimiento_dtf'].notna()), 'inconsistencia_fechas'] = 3
 # Filtrar las filas donde 'edad' no es nulo ni cero y
 # 'edad_desaparicion_est' no es nulo ni cero
-df = df[(df['edad'].notna()) & (df['edad'] != 0) &
-        (df['edad_desaparicion_est'].notna())
-        & (df['edad_desaparicion_est'] != 0)]
+# #df = df[(df['edad'].notna()) & (df['edad'] != 0) &
+# #        (df['edad_desaparicion_est'].notna())
+# #        & (df['edad_desaparicion_est'] != 0)]
 # Filtrar las filas donde 'edad_desaparicion_est' está fuera de rango
 df.loc[(df['edad_desaparicion_est'] < 0) | (df['edad_desaparicion_est'] > 100),
        'inconsistencia_fechas'] = 3
@@ -300,7 +347,7 @@ columnas_fecha = ['anio_nacimiento', 'mes_nacimiento', 'dia_nacimiento',
 for columna in columnas_fecha:
     df.loc[df['inconsistencia_fechas'] != 0, columna] = ''
 # Eliminar la columna 'inconsistencia_fechas' si ya no es necesaria
-df.drop(columns=['inconsistencia_fechas'], inplace=True)
+# #df.drop(columns=['inconsistencia_fechas'], inplace=True)
 # 277
 # 4. Identificación y eliminación de Registros No Identificados
 # Crear una columna 'non_miss' que cuente la cantidad de valores no nulos
@@ -316,6 +363,8 @@ df['rni'] = (df['non_miss'] < 2).astype(int)
 df.loc[(df['primer_nombre'] == "") | (df['primer_apellido'] == ""), 'rni'] = 1
 df.loc[(df['codigo_dane_departamento'] == "") & (df['fecha_ocur_anio'] == "")
        & (df['documento'] == "") & (df['fecha_nacimiento'] == ""), 'rni'] = 1
+
+conteo = df["rni"].value_counts()
 
 # Calcular 'rni_' y 'N' para cada grupo de 'codigo_unico_fuente'
 df['rni_'] = df.groupby('codigo_unico_fuente')['rni'].transform('sum')
@@ -344,12 +393,22 @@ df = df[df['rni_'] != df['N']]
 columnas_a_mantener = [
     'tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre',
     'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'documento',
-    'sexo', 'iden_pertenenciaetnica', 'fecha_nacimiento', 'anio_nacimiento',
+    'sexo', 'etnia', 'fecha_nacimiento', 'anio_nacimiento',
     'mes_nacimiento', 'dia_nacimiento', 'edad', 'fecha_desaparicion',
     'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 'pais_ocurrencia',
     'codigo_dane_departamento', 'departamento_ocurrencia',
-    'codigo_dane_municipio', 'municipio_ocurrencia', 'TH*', 'pres_resp_*',
-    'descripcion_relato', 'in_*']
+    'codigo_dane_municipio', 'municipio', 
+    'TH_DF','TH_SE', 'TH_RU', 
+    'pres_resp_agentes_estatales', 'pres_resp_grupos_posdesmov',
+    'pres_resp_paramilitares', 'pres_resp_guerr_eln', 'pres_resp_guerr_farc',
+    'pres_resp_guerr_otra',  'pres_resp_otro',
+    'descripcion_relato', 
+    'in_ruv', 'in_vp_das', 'in_urt', 'in_uph', 'in_up', 'in_sindicalistas',
+    'in_sijyp', 'in_ponal', 'in_pgn', 'in_personeria', 'in_paislibre',
+    'in_onic', 'in_oacp', 'in_mindefensa', 'in_jmp', 'in_inml', 'in_icbf',
+    'in_forjandofuturos', 'in_fgn', 'in_ejercito', 'in_credhos', 'in_conase',
+    'in_cnmh', 'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
+    'in_cceeu', 'in_caribe','rni','non_miss' ]
 # Filtrar las columnas que deseas mantener en el DataFrame
 df = df[columnas_a_mantener]
 # Crear una columna 'nonmiss' que cuente la cantidad de valores no nulos
@@ -357,16 +416,28 @@ df = df[columnas_a_mantener]
 columnas_no_nulas = [
     'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
     'nombre_completo', 'documento', 'sexo', 'edad', 'dia_nacimiento',
-    'mes_nacimiento', 'anio_nacimiento', 'iden_pertenenciaetnica', 'TH_DF',
-    'TH_SE', 'TH_RU', 'fecha_ocur_dia', 'fecha_ocur_mes', 'fecha_ocur_anio'
-    'codigo_dane_departamento', 'codigo_dane_municipio', 'pres_resp*',
-    'descripcion_relato', 'in_*']
+    'mes_nacimiento', 'anio_nacimiento', 'etnia', 'TH_DF',
+    'TH_SE', 'TH_RU', 'fecha_ocur_dia', 'fecha_ocur_mes', 'fecha_ocur_anio',
+    'codigo_dane_departamento', 'codigo_dane_municipio', 
+    'pres_resp_agentes_estatales', 'pres_resp_grupos_posdesmov',
+    'pres_resp_paramilitares', 'pres_resp_guerr_eln', 'pres_resp_guerr_farc',
+    'pres_resp_guerr_otra',  'pres_resp_otro', 
+    'descripcion_relato', 
+    'in_ruv', 'in_vp_das', 'in_urt', 'in_uph', 'in_up', 'in_sindicalistas',
+    'in_sijyp', 'in_ponal', 'in_pgn', 'in_personeria', 'in_paislibre',
+    'in_onic', 'in_oacp', 'in_mindefensa', 'in_jmp', 'in_inml', 'in_icbf',
+    'in_forjandofuturos', 'in_fgn', 'in_ejercito', 'in_credhos', 'in_conase',
+    'in_cnmh', 'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
+    'in_cceeu', 'in_caribe']
 df['nonmiss'] = df[columnas_no_nulas].count(axis=1)
 # Ordenar el DataFrame
 df = df.sort_values(by=['codigo_unico_fuente', 'rni', 'documento', 'nonmiss'])
 # Mantener solo la primera fila de cada grupo 'codigo_unico_fuente'
 df = df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first')
 # Eliminar columnas temporales
-df.drop(columns=['rni*', 'nonmiss'], inplace=True)
+# #df.drop(columns=['rni*', 'nonmiss'], inplace=True)
 df.to_csv("archivos depurados/BD_CEV_JEP.csv", index=False)
 # 318
+
+
+

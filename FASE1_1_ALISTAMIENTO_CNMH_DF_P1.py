@@ -625,6 +625,7 @@ cnmh['edad'] = np.where(
         np.nan,
         cnmh['fecha_ocur_anio'].astype(float) -
         cnmh['anio_nacimiento'].astype(float)))
+
 cnmh['edad'] = np.where(cnmh['edad'] > 100, np.nan, cnmh['edad'])
 
 # Verificar que la edad esté dentro del rango [1, 100]

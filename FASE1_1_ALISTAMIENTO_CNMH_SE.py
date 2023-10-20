@@ -309,10 +309,15 @@ cnmh['pres_resp_guerr_otra'] = np.where((cnmh['grupo'].str.contains("GRUPOS GUER
                                         (cnmh['presunto_reponsable'].str.contains("GUERRILLA", flags=re.IGNORECASE) & ~(cnmh['descripcion_grupo'].str.contains("FARC|ELN", flags=re.IGNORECASE))) |
                                         (cnmh['descripcion_presunto_responsable1'].str.contains("EPL", flags=re.IGNORECASE)), 1, 0)
 # Calcular columna 'pres_resp_otro' basada en la suma de las columnas anteriores
-cnmh['tmp'] = cnmh[['pres_resp_agentes_estatales', 'pres_resp_grupos_posdesmov', 'pres_resp_paramilitares',
-                    'pres_resp_guerr_eln', 'pres_resp_guerr_farc', 'pres_resp_guerr_otra']].sum(axis=1)
-cnmh['pres_resp_otro'] = np.where(cnmh['tmp'] > 0, 1, 0)
-cnmh = cnmh.drop(columns=['tmp'])
+
+cnmh['pres_resp_otro'] = np.where(
+    (cnmh['grupo'].str.contains("GRUPO ARMADO NO IDENTIFICADO", flags=re.IGNORECASE))  |
+    (cnmh['presunto_reponsable'].str.contains("GRUPO ARMADO NO", flags=re.IGNORECASE))  |
+    (cnmh['presunto_reponsable'].str.contains("BANDOLERISMO", flags=re.IGNORECASE))  |
+    (cnmh['presunto_reponsable'].str.contains("AGENTE EXTRANJERO", flags=re.IGNORECASE))  |
+    (cnmh['presunto_reponsable'].str.contains("CRIMEN ORGANIZADO", flags=re.IGNORECASE))  |
+    (cnmh['presunto_reponsable'].str.contains("OTRO CUAL", flags=re.IGNORECASE)) , 1, 0)
+
 # Mostrar la suma de presuntos responsables en cada categoría
 sum_pres_resp = cnmh[['pres_resp_agentes_estatales', 'pres_resp_grupos_posdesmov', 'pres_resp_paramilitares',
                       'pres_resp_guerr_eln', 'pres_resp_guerr_farc', 'pres_resp_guerr_otra', 'pres_resp_otro']].sum()
@@ -480,12 +485,10 @@ cnmh = cnmh.drop_duplicates()
 n_duplicados = n_1 - len(cnmh)
 # Excluir víctimas indirectas
 n_2 = len(cnmh)
-cnmh = cnmh[~cnmh['iden_pertenenciaetnica'].isin(['VICTIMA INDIRECTA'])]
 # Contar víctimas indirectas excluidas
 n_indirectas = n_2 - len(cnmh)
 # Excluir personas jurídicas
 n_3 = len(cnmh)
-cnmh = cnmh[~cnmh['tipo_documento'].isin(['PERSONA JURIDICA'])]
 # Contar personas jurídicas excluidas
 n_juridicas = n_3 - len(cnmh)
 # Crear una lista con los campos requeridos para la comparación de nombres

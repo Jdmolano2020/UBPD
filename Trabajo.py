@@ -64,7 +64,7 @@ df.to_csv(archivo_csv, index=False)
 # #        f'unicode translate "{archivo_a_traducir}" "{archivo_utf8}" transutf8')
 # #    os.remove(archivo_a_traducir)
 # Crear un identificador de registro
-df = pd.read_csv(archivo_csv)
+# #df = pd.read_csv(archivo_csv)
 df.columns = df.columns.str.lower()
 df['duplicates_reg'] = df.duplicated()
 df = df[~df['duplicates_reg']]
@@ -131,5 +131,89 @@ for var in variables_a_limpiar:
 # Datos sobre los hechos	
 # Lugar de ocurrencia- País/Departamento/Muncipio
 # Crear la variable 'pais_ocurrencia' basada en 'pais_de_ocurrencia'
-df['pais_ocurrencia'] = df['pais_de_ocurrencia'].apply(lambda x: 'COLOMBIA' if x == '57' else x)
-df.drop(columns=['pais_de_ocurrencia'], inplace=True)
+df['pais_ocurrencia'] = np.where(df['pais_de_ocurrencia'] == 57, 'COLOMBIA',
+                                   None)
+# #df.drop(columns=['pais_de_ocurrencia'], inplace=True)
+# Realizar un merge con el archivo DIVIPOLA_departamentos_122021.dta
+dane = pd.read_stata(
+    "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
+# Renombrar columnas
+dane = dane.rename(columns={
+    'codigo_dane_departamento': 'codigo_dane_departamento',
+    'departamento': 'departamento_ocurrencia',
+    'codigo_dane_municipio': 'codigo_dane_municipio',
+    'municipio': 'municipio_ocurrencia'
+})
+# Realizar la unión (left join) con "dane"
+df = pd.merge(df, dane, how='left', left_on=['codigo_dane_departamento', 'codigo_dane_municipio'],
+                right_on=['codigo_dane_departamento', 'codigo_dane_municipio'])
+nrow_df = len(df)
+print("Registros despues left dane depto muni:",nrow_df)
+
+# Procesamiento de fechas de ocurrencia
+
+df['ymd_hecho'] = df['fecha_ocur_anio'].astype(str)
+
+df['fecha_ocur_anio'] = df['ymd_hecho'].str[0:4]
+df['fecha_ocur_mes'] = df['ymd_hecho'].str[5:7]
+df['fecha_ocur_dia'] = df['ymd_hecho'].str[8:10]
+# #df['fecha_ocur_mes'] = pd.to_datetime(df['fecha_ocur_anio'], format='%Y').dt.month
+# #df['fecha_ocur_dia'] = pd.to_datetime(df['fecha_ocur_anio'], format='%Y').dt.day
+# Eliminar fechas de ocurrencia que no cumplen con los rangos válidos
+df['fecha_ocur_mes'].replace('0', np.nan, inplace=True)
+df['fecha_ocur_dia'].replace('0', np.nan, inplace=True)
+# #df.drop(index=df[(df['fecha_ocur_mes'] < 1) | (df['fecha_ocur_mes'] > 12)].index, inplace=True)
+# #df.drop(index=df[(df['fecha_ocur_dia'] < 1) | (df['fecha_ocur_dia'] > 31)].index, inplace=True)
+df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('18', '19', n=1)
+df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('179', '197', n=1)
+df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('169', '196', n=1)
+df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('159', '195', n=1)
+
+df['fecha_desaparicion'] = df['fecha_ocur_anio'] + "-" + df['fecha_ocur_mes'] + "-" + df['fecha_ocur_dia']
+df['fecha_desaparicion'] = df['fecha_ocur_anio'].str.replace('NaT--', '', n=1)
+
+# Tipo de responsable
+# Paramilitares
+FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES.homologar_paramilitares(df)
+# Bandas criminales y grupos armados posdesmovilización
+FASE1_HOMOLOGACION_CAMPO_BANDAS_CRIMINALES.homologar_bandas_criminales(df)
+# Fuerza pública y agentes del estado
+FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO.homologar_fuerzapublica(df)
+# FARC
+FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC.homologar_farc(df)
+# ELN
+FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_ELN.homologar_eln(df)
+# Otra guerrilla y grupo guerrillero no determinado
+FASE1_HOMOLOGACION_CAMPO_OTRAS_GUERRILLAS.homologar_otras_guerrillas(df)
+# Otro actor- PENDIENTE
+# Aplicar las condiciones y asignar 1 a pres_resp_otro cuando todas las condiciones se cumplan.
+df['pres_resp_otro'] = 0
+df.loc[(df['presunto_responsable'] != "") & 
+       (df['presunto_responsable'].str.contains("PENDIENTE") == False) &
+       (df['presunto_responsable'].str.contains("INFORMACION") == False) &
+       (df['presunto_responsable'].str.contains("DETERMINAR") == False) &
+       (df['presunto_responsable'].str.contains("PRECISAR") == False) &
+       (df['presunto_responsable'].str.contains("REFIERE") == False) &
+       (df['presunto_responsable'].str.contains("IDENTIFICADA") == False) &
+       (df['pres_resp_paramilitares'].isna()) &
+       (df['pres_resp_grupos_posdesmov'].isna()) &
+       (df['pres_resp_agentes_estatales'].isna()) &
+       (df['pres_resp_guerr_farc'].isna()) &
+       (df['pres_resp_guerr_eln'].isna()) &
+       (df['pres_resp_guerr_otra'].isna()), 'pres_resp_otro'] = 1
+# Tipo de hecho
+# Crear la variable TH_DF
+df['TH_DF'] = 0
+df.loc[(df['tipo_de_hecho'].str.contains("DESAPARICION")) & (df['tipo_de_hecho'].str.contains("FORZADA")), 'TH_DF'] = 1
+# Crear la variable TH_SE
+df['TH_SE'] = 0
+df.loc[df['tipo_de_hecho'].str.contains("SECUESTRO"), 'TH_SE'] = 1
+# Crear la variable TH_RU
+df['TH_RU'] = 0
+df.loc[df['tipo_de_hecho'].str.contains("RECLUTAMIENTO"), 'TH_RU'] = 1
+# Crear la variable TH_OTRO
+df['TH_OTRO'] = 0
+df.loc[(df['TH_DF'] == 0) & (df['TH_RU'] == 0) & (df['TH_SE'] == 0) &
+       (df['tipo_de_hecho'].str.contains("SIN") == False) &
+       (df['tipo_de_hecho'].str.contains("DETERMINAR") == False) &
+       (df['tipo_de_hecho'] != ""), 'TH_OTRO'] = 1

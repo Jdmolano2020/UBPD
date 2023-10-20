@@ -12,7 +12,12 @@ import FASE1_HOMOLOGACION_CAMPO_OTRAS_GUERRILLAS
 def concat_values(*args):
     return ' '.join(arg for arg in args if arg.strip())
 
-
+def clean_func(x):
+    if x is None:
+        x = ' '
+    x1 = x.astype(str)
+    x2 = x1.str.upper()
+    return x2
 # parametros programa stata
 parametro_ruta = ""
 parametro_cantidad = ""
@@ -72,3 +77,59 @@ columnas_ordenadas = ['primer_nombre', 'segundo_nombre', 'primer_apellido', 'seg
                       'tipo_de_hecho', 'presunto_responsable', 'codigo_unico_fuente']
 
 df = df.sort_values(by=columnas_ordenadas)
+
+# Renombrar una columna
+df.rename(columns={'fuente': 'tabla_origen'}, inplace=True)
+# Origen de los datos
+df['tabla_origen'] = 'FGN_EXP_INACTIVOS'
+# Origen
+df['in_fgn_inactivos'] = 1
+# Número observaciones en la tabla
+numero_observaciones = len(df)
+# 1. Seleccionar variables que serán homologadas para la integración
+# #columnas_a_eliminar = ['lugar_ocurr_territorio_colectivo', 'departamento_de_ocurrencia',
+# #                       'municipio_de_ocurrencia', 'tipo_documento', 'tipo_otro_nombre', 'otro_nombre']
+
+# #df = df.drop(columns=columnas_a_eliminar)
+# 2. Normalización de los campos de texto
+# Eliminación de acento, "NO APLICA", "NULL"
+
+# Convertir todas las variables a mayúsculas
+variables_a_convertir = ['tabla_origen', 'nombre_completo', 'primer_nombre', 'segundo_nombre', 'primer_apellido',
+                         'segundo_apellido', 'sexo', 'iden_orientacionsexual', 'iden_pertenenciaetnica_', 'tipo_de_hecho',
+                         'descripcion_relato', 'presunto_responsable', 'situacion_actual_des']
+
+df[variables_a_convertir] = df[variables_a_convertir].apply(lambda x: clean_func(x))
+
+
+# Reemplazar valores vacíos en todas las columnas con palabras clave
+palabras_clave = ['NO DETERMINADO DESDE FUENTE', 'SIN INFORMACIÓN', 'SIN INFORMACION', 'SIN DATOS EN ARCHIVO FUENTE']
+
+for var in df.columns:
+    df[var] = df[var].apply(lambda x: np.nan if any(keyword in str(x) for keyword in palabras_clave) else x)
+
+# Limpieza de caracteres especiales y espacios en variables específicas
+variables_a_limpiar = ['nombre_completo', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
+                       'nombre_completo', 'presunto_responsable', 'sexo', 'tipo_de_hecho', 'iden_pertenenciaetnica_']
+
+for var in variables_a_limpiar:
+    df[var] = df[var].str.replace('Á', 'A').str.replace('É', 'E').str.replace('Í', 'I').str.replace('Ó', 'O')\
+        .str.replace('Ú', 'U').str.replace('Ü', 'U').str.replace('Ñ', 'N').str.replace('   ', ' ').str.replace('  ', ' ')\
+        .str.strip()
+# Remover caracteres no permitidos
+for var in variables_a_limpiar:
+    for i in range(210):
+        if chr(i) not in [' ', '0-9', 'A-Z', 'Á', 'É', 'Í', 'Ó', 'Ú', 'Ü', 'Ñ', 'ñ']:
+            df[var] = df[var].str.replace(chr(i), '')
+# Reemplazar valores basados en palabras clave en variables específicas
+palabras_clave_reemplazar = ['NO APLICA', 'NULL', 'ND', 'NA', 'NR', 'SIN INFOR', 'NO SABE', 'DESCONOCID', 'POR DEFINIR', 'POR ESTABLECER']
+
+for var in variables_a_limpiar:
+    df[var] = df[var].apply(lambda x: np.nan if any(keyword in str(x) for keyword in palabras_clave_reemplazar) else x)
+
+# 3. Homologación de estructura, formato y contenido
+# Datos sobre los hechos	
+# Lugar de ocurrencia- País/Departamento/Muncipio
+# Crear la variable 'pais_ocurrencia' basada en 'pais_de_ocurrencia'
+df['pais_ocurrencia'] = df['pais_de_ocurrencia'].apply(lambda x: 'COLOMBIA' if x == '57' else x)
+df.drop(columns=['pais_de_ocurrencia'], inplace=True)

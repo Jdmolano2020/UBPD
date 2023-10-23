@@ -6,6 +6,7 @@ def homologar_fuerzapublica (df : pd ):
     df['pres_resp_agentes_estatales'] = np.where(
         (
         df['presunto_responsable'].str.contains("FUERZA PUBLICA") |
+        
         (df['presunto_responsable'].str.contains("ESTADO") & 
          ~df['presunto_responsable'].str.contains("MAYOR") & 
          ~df['presunto_responsable'].str.contains("CONJUNTO") & 

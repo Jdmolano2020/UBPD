@@ -2,6 +2,8 @@ import os
 from sqlalchemy import create_engine
 import pandas as pd
 import numpy as np
+import unicodedata
+import re
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
 import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC 
@@ -9,15 +11,31 @@ import FASE1_HOMOLOGACION_CAMPO_BANDAS_CRIMINALES
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_ELN
 import FASE1_HOMOLOGACION_CAMPO_OTRAS_GUERRILLAS
 
+def normalize_text(text):
+    # Eliminar acentos
+    text = ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+    # Convertir a mayúsculas
+    text = text.upper()
+    # Eliminar espacios al inicio y al final
+    text = text.strip()
+    # Eliminar caracteres no ASCII
+    text = ''.join([c if ord(c) < 128 else ' ' for c in text])
+    # Mantener solo caracteres alfanuméricos y espacios
+    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
+    # Eliminar espacios duplicados
+    text = ' '.join(text.strip().split())
+    return text
+
+def clean_text(text):
+    if text is None or text.isna().any():
+        return text      
+    text = text.apply(normalize_text)
+    return text
+
 def concat_values(*args):
     return ' '.join(arg for arg in args if arg.strip())
 
-def clean_func(x):
-    if x is None:
-        x = ' '
-    x1 = x.astype(str)
-    x2 = x1.str.upper()
-    return x2
+
 # parametros programa stata
 parametro_ruta = ""
 parametro_cantidad = ""
@@ -95,37 +113,39 @@ numero_observaciones = len(df)
 # Eliminación de acento, "NO APLICA", "NULL"
 
 # Convertir todas las variables a mayúsculas
-variables_a_convertir = ['tabla_origen', 'nombre_completo', 'primer_nombre', 'segundo_nombre', 'primer_apellido',
-                         'segundo_apellido', 'sexo', 'iden_orientacionsexual', 'iden_pertenenciaetnica_', 'tipo_de_hecho',
-                         'descripcion_relato', 'presunto_responsable', 'situacion_actual_des']
+variables_a_convertir = ['tabla_origen',
+                         'nombre_completo',
+                         'primer_nombre',
+                         'segundo_nombre',
+                         'primer_apellido',
+                         'segundo_apellido',
+                         'sexo',
+                         'iden_orientacionsexual',
+                         'iden_pertenenciaetnica_',
+                         'tipo_de_hecho',
+                         'descripcion_relato',
+                         'presunto_responsable',
+                         'situacion_actual_des']
 
-df[variables_a_convertir] = df[variables_a_convertir].apply(lambda x: clean_func(x))
+df[variables_a_convertir] = df[variables_a_convertir].apply(clean_text)
 
+na_values = {
+    'NO DETERMINADO DESDE FUENTE': np.nan,
+    'SIN INFORMACION': np.nan,
+    'SIN DATOS EN ARCHIVO FUENTE': np.nan,
+    'NO APLICA': np.nan,
+    'NULL': np.nan,
+    'ND': np.nan,
+    'NA': np.nan,
+    'NR': np.nan,
+    'SIN INFOR': np.nan,
+    'NO SABE': np.nan,
+    'DESCONOCIDO': np.nan,
+    'POR DEFINIR': np.nan,
+    'POR ESTABLECER': np.nan
+}
 
-# Reemplazar valores vacíos en todas las columnas con palabras clave
-palabras_clave = ['NO DETERMINADO DESDE FUENTE', 'SIN INFORMACIÓN', 'SIN INFORMACION', 'SIN DATOS EN ARCHIVO FUENTE']
-
-for var in df.columns:
-    df[var] = df[var].apply(lambda x: np.nan if any(keyword in str(x) for keyword in palabras_clave) else x)
-
-# Limpieza de caracteres especiales y espacios en variables específicas
-variables_a_limpiar = ['nombre_completo', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
-                       'nombre_completo', 'presunto_responsable', 'sexo', 'tipo_de_hecho', 'iden_pertenenciaetnica_']
-
-for var in variables_a_limpiar:
-    df[var] = df[var].str.replace('Á', 'A').str.replace('É', 'E').str.replace('Í', 'I').str.replace('Ó', 'O')\
-        .str.replace('Ú', 'U').str.replace('Ü', 'U').str.replace('Ñ', 'N').str.replace('   ', ' ').str.replace('  ', ' ')\
-        .str.strip()
-# Remover caracteres no permitidos
-for var in variables_a_limpiar:
-    for i in range(210):
-        if chr(i) not in [' ', '0-9', 'A-Z', 'Á', 'É', 'Í', 'Ó', 'Ú', 'Ü', 'Ñ', 'ñ']:
-            df[var] = df[var].str.replace(chr(i), '')
-# Reemplazar valores basados en palabras clave en variables específicas
-palabras_clave_reemplazar = ['NO APLICA', 'NULL', 'ND', 'NA', 'NR', 'SIN INFOR', 'NO SABE', 'DESCONOCID', 'POR DEFINIR', 'POR ESTABLECER']
-
-for var in variables_a_limpiar:
-    df[var] = df[var].apply(lambda x: np.nan if any(keyword in str(x) for keyword in palabras_clave_reemplazar) else x)
+df[variables_a_convertir] = df[variables_a_convertir].replace(na_values)
 
 # 3. Homologación de estructura, formato y contenido
 # Datos sobre los hechos	
@@ -217,3 +237,5 @@ df.loc[(df['TH_DF'] == 0) & (df['TH_RU'] == 0) & (df['TH_SE'] == 0) &
        (df['tipo_de_hecho'].str.contains("SIN") == False) &
        (df['tipo_de_hecho'].str.contains("DETERMINAR") == False) &
        (df['tipo_de_hecho'] != ""), 'TH_OTRO'] = 1
+
+conteo = df['presunto_responsable'].value_counts()

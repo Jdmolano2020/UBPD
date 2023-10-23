@@ -4,7 +4,7 @@ import numpy as np
 def homologar_otras_guerrillas (df : pd ):
     
     df['pres_resp_guerr_otra'] = np.where((
-        df['pres_resp_guerr_eln'].isna() & df['pres_resp_guerr_farc'].isna() & df['pres_resp_paramilitares'].isna()  & df['pres_resp_grupos_posdesmov'].isna() & df['res_resp_agentes_estatales'].isna() &
+        df['pres_resp_guerr_eln'].isna() & df['pres_resp_guerr_farc'].isna() & df['pres_resp_paramilitares'].isna()  & df['pres_resp_grupos_posdesmov'].isna() & df['pres_resp_agentes_estatales'].isna() &
 		(df['presunto_responsable'].str.contains("GUERRILL") | 
 		df['presunto_responsable'].str.contains("ERP") | 
 		df['presunto_responsable'].str.contains("EPR") |

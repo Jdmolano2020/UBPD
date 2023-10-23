@@ -3,7 +3,7 @@ import numpy as np
 
 def homologar_farc (df : pd ):
 
-    df['pres_resp_agentes_estatales'] = np.where(
+    df['pres_resp_guerr_farc'] = np.where(
         (df['presunto_responsable'].str.contains("FARC") | 
     	(df['presunto_responsable'].str.contains("FUERZA") & df['presunto_responsable'].str.contains("ARMAD") & df['presunto_responsable'].str.contains("REVOLUCION")) | 
     	df['presunto_responsable'].str.contains("FRAC") |
@@ -31,7 +31,7 @@ def homologar_farc (df : pd ):
     	df['presunto_responsable'].str.contains("65") | df['presunto_responsable'].str.contains("66")))
         ), 1, 0)
 
-    df['pres_resp_agentes_estatales'] = np.where((
+    df['pres_resp_guerr_farc'] = np.where((
         (df['presunto_responsable'].str.contains("ARMANDO") & df['presunto_responsable'].str.contains("RIOS")) |
     	(df['presunto_responsable'].str.contains("AUREL") & df['presunto_responsable'].str.contains("RODRIGUEZ")) |
     	(df['presunto_responsable'].str.contains("FRENTE") & df['presunto_responsable'].str.contains("MADRE")) |
@@ -71,7 +71,7 @@ def homologar_farc (df : pd ):
     	(df['presunto_responsable'].str.contains("FRENTE") & df['presunto_responsable'].str.contains("CARIBE")) |
     	(df['presunto_responsable'].str.contains("BLOQUE") & df['presunto_responsable'].str.contains("CARIBE"))), 1, 0)
 
-    df['pres_resp_agentes_estatales'] = np.where((
+    df['pres_resp_guerr_farc'] = np.where((
     	(df['presunto_responsable'].str.contains("CIRO") & df['presunto_responsable'].str.contains("TRUJILLO") & df['presunto_responsable'].str.contains("CASTANO")) |
     	(df['presunto_responsable'].str.contains("RICAURTE") & df['presunto_responsable'].str.contains("JIMENEZ")) |
     	(df['presunto_responsable'].str.contains("JOAQUIN") & df['presunto_responsable'].str.contains("BALLEN")) |
@@ -102,7 +102,7 @@ def homologar_farc (df : pd ):
     	(df['presunto_responsable'].str.contains("RODOLFO") & df['presunto_responsable'].str.contains("TANAS") ) |
     	(df['presunto_responsable'].str.contains("POLICARPA") & df['presunto_responsable'].str.contains("SALAVARRIETA"))), 1, 0)
 
-    df['pres_resp_agentes_estatales'] = np.where((
+    df['pres_resp_guerr_farc'] = np.where((
     	(df['presunto_responsable'].str.contains("JOSELO") & df['presunto_responsable'].str.contains("LOSADA") ) |
     	(df['presunto_responsable'].str.contains("MARIO") & df['presunto_responsable'].str.contains("VELEZ") ) |
     	(df['presunto_responsable'].str.contains("MANUELA") & df['presunto_responsable'].str.contains("BELTRAN") ) |
@@ -133,7 +133,7 @@ def homologar_farc (df : pd ):
     	(df['presunto_responsable'].str.contains("MARTIN") & df['presunto_responsable'].str.contains("MARTINEZ")) |
     	(df['presunto_responsable'].str.contains("VICTOR") & df['presunto_responsable'].str.contains("ALIRIO") & df['presunto_responsable'].str.contains("SAAVEDRA"))),1, 0)
 
-    df['pres_resp_agentes_estatales'] = np.where((
+    df['pres_resp_guerr_farc'] = np.where((
     	(df['presunto_responsable'].str.contains("REINEL") & df['presunto_responsable'].str.contains("MENDEZ")) |
     	(df['presunto_responsable'].str.contains("LUIS") & df['presunto_responsable'].str.contains("PARDO")) |
     	(df['presunto_responsable'].str.contains("ALFONSO") & df['presunto_responsable'].str.contains("CASTELLANOS")) |

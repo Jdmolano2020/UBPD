@@ -395,3 +395,4 @@ df['g'] = df.groupby('codigo_unico_fuente').ngroup()
 group_summary = df.groupby('g').size().reset_index(name='count')
 # Eliminar la variable de grupo 'g'
 df.drop(columns=['g'], inplace=True)
+

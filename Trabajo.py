@@ -268,14 +268,122 @@ for col in cols_to_clean:
     df.loc[df[col].str.len() == 1, col] = ""
 # Nombre completo
 cols_nombre = [ 'segundo_nombre', 'primer_apellido', 'segundo_apellido']
+# Inicializa la columna 'nombre_completo' con el valor de 'primer_nombre'
 df['nombre_completo_'] = df['primer_nombre']
+
 for col in cols_nombre:
-    if  (~df[col] == ""):
-        df['nombre_completo'] + " " + df[col]  # Concatenar nombres y apellidos no vacíos
+    df['nombre_completo_'] + " " + df[col].fillna("")  # Concatenar nombres y apellidos no vacíos
     
-df['nombre_completo_'] = df['nombre_completo'].str.strip()  # Eliminar espacios en blanco al principio y al final
-df['nombre_completo_'] = df['nombre_completo'].str.replace('  ', ' ', regex=True)  # Reemplazar espacios dobles por espacios simples
+df['nombre_completo_'] = df['nombre_completo_'].str.strip()  # Eliminar espacios en blanco al principio y al final
+df['nombre_completo_'] = df['nombre_completo_'].str.replace('  ', ' ', regex=True)  # Reemplazar espacios dobles por espacios simples
 # Eliminar columna nombre_completo original
-df.drop(columns=['nombre_completo_'], inplace=True)
+df.drop(columns=['nombre_completo'], inplace=True)
 # Renombrar columna
-df.rename(columns={'nombre_completo': 'nombre_completo'}, inplace=True)
+df.rename(columns={'nombre_completo_': 'nombre_completo'}, inplace=True)
+# Documento
+# Eliminar símbolos y caracteres especiales
+# Convertir todos los caracteres a mayúsculas
+df['documento_'] = df['documento'].str.upper()
+# Eliminar caracteres no permitidos en el documento
+for i in range(256):
+    if (i != 32) and (i < 48 or i > 57) and (i < 65 or i > 90) and (i != 209):
+        char = chr(i)
+        df['documento_'] = df['documento_'].str.replace(char, '', regex=False)
+# Eliminar cadenas de texto sin números
+for i in range(48, 58):
+    char = chr(i)
+    df['documento_dep'] = df['documento_'].str.replace(char, '', regex=False)
+df['documento_'] = df.apply(lambda row: row['documento_'] if row['documento_dep'] == row['documento_'] else "", axis=1)
+# Eliminar cadenas complejas de texto tipo anotaciones
+df['documento_'] = df['documento_'].str.replace(r'[^0-9]', '', regex=True)
+
+# Borrar registros de documentos de identificación iguales a '0'
+# #df = df[~df['documento_'].astype(str).str.isnumeric() | (df['documento_'] != "0")]
+# Limpiar espacios en blanco al principio y al final, y reducir espacios múltiples a uno solo
+df['documento_'] = df['documento_'].str.strip()
+df['documento_'] = df['documento_'].str.replace('   ', ' ')
+df['documento_'] = df['documento_'].str.replace('  ', ' ')
+# Eliminar las columnas documento y documento_dep
+df.drop(columns=['documento', 'documento_dep'], inplace=True)
+# Renombrar la columna documento_
+df.rename(columns={'documento_': 'documento'}, inplace=True)
+# Pertenencia_etnica [NARP; INDIGENA; RROM; MESTIZO]
+# Renombrar la columna
+df.rename(columns={'iden_pertenenciaetnica_': 'iden_pertenenciaetnica'}, inplace=True)
+# Recodificar valores
+df['iden_pertenenciaetnica'].replace({"AFROCOLOMBIANO": "NARP",
+                                      "AFROCOLOMBIANOA": "NARP",
+                                      "AFROCOLOMBIANA": "NARP",
+                                      "PALENQUERO": "NARP",
+                                      "RAIZAL": "NARP",
+                                      "NINGUNA": "MESTIZO"}, inplace=True)
+# Fecha de nacimiento- Validar rango
+# Eliminar columnas que empiezan con "anio_nacimiento"
+columns_to_drop = [col for col in df.columns if col.startswith("anio_nacimiento")]
+df.drop(columns=columns_to_drop, inplace=True)
+# Crear una columna "anio_nacimiento" vacía
+df['anio_nacimiento'] = ""
+# Convertir las columnas dia_nacimiento y mes_nacimiento a cadenas
+df['dia_nacimiento'] = df['dia_nacimiento'].astype(str)
+df['mes_nacimiento'] = df['mes_nacimiento'].astype(str)
+# Reemplazar valores vacíos en mes_nacimiento
+df.loc[df['mes_nacimiento'] == ".", 'mes_nacimiento'] = ""
+# Reemplazar valores vacíos en dia_nacimiento
+df.loc[df['dia_nacimiento'] == ".", 'dia_nacimiento'] = ""
+# Crear una columna "fecha_nacimiento" vacía
+df['fecha_nacimiento'] = ""
+# Edad
+# Validación de rango
+# Calcular la variable "edad" en función de las condiciones especificadas
+df['edad'] = 0  # Crear la columna "edad" inicialmente con valor 0
+# Calcular "edad" en función de las condiciones especificadas
+df.loc[(df['edad_des_inf'] != 0) & (df['edad_des_sup'] == 0), 'edad'] = df['edad_des_inf']
+df.loc[(df['edad_des_inf'] == 0) & (df['edad_des_sup'] != 0), 'edad'] = df['edad_des_sup']
+df.loc[(df['edad_des_inf'] < df['edad_des_sup']) & (df['edad_des_inf'] != 0) & (df['edad_des_sup'] != 0), 'edad'] = df['edad_des_inf']
+df.loc[(df['edad_des_inf'] >= df['edad_des_sup']) & (df['edad_des_inf'] != 0) & (df['edad_des_sup'] != 0), 'edad'] = df['edad_des_sup']
+# Reemplazar valores mayores de 100 con valores faltantes
+df.loc[df['edad'] > 100, 'edad'] = None  # None representa un valor faltante en Pandas
+# Reemplazar "edad" con 0 cuando ambas "edad_des_inf" y "edad_des_sup" son iguales a 0
+df.loc[(df['edad_des_inf'] == 0) & (df['edad_des_sup'] == 0), 'edad'] = 0
+# Eliminar las columnas "edad_des_inf" y "edad_des_sup"
+df.drop(columns=['edad_des_inf', 'edad_des_sup'], inplace=True)
+# 4. Identificación y eliminación de Registros No Identificados (registros sin datos suficientes para la individualización de las víctimas) 
+# Calcular la variable "non_miss" que cuenta la cantidad de columnas no faltantes por fila
+df['non_miss'] = df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].count(axis=1)
+# Calcular la variable "rni" en función de las condiciones especificadas
+df['rni'] = (df['non_miss'] < 2) | (df['primer_nombre'] == "") | (df['primer_apellido'] == "") | ((df['codigo_dane_departamento'] == "") & (df['fecha_ocur_anio'] == "") & (df['documento'] == ""))
+# Calcular "rni_" y "N" por grupo de "codigo_unico_fuente"
+df['rni_'] = df.groupby('codigo_unico_fuente')['rni'].transform('sum')
+df['N'] = df.groupby('codigo_unico_fuente')['codigo_unico_fuente'].transform('count')
+# Guardar registros no individualizables en un nuevo archivo
+df_rni = df[df['rni'] == 1].copy()
+df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
+# Eliminar registros no individualizables o sin suficientes datos para la integración
+df = df[df['rni_'] != df['N']]
+# Eliminar columnas auxiliares
+df.drop(columns=['non_miss', 'rni_', 'N'], inplace=True)
+# 5. Identificación de registros/filas únicas	
+# Seleccionar las columnas especificadas
+columns_to_keep = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre', 'segundo_nombre',
+                   'primer_apellido', 'segundo_apellido', 'documento', 'sexo', 'iden_pertenenciaetnica', 'edad',
+                   'fecha_desaparicion', 'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 'pais_ocurrencia',
+                   'codigo_dane_departamento', 'departamento_ocurrencia', 'codigo_dane_municipio', 'municipio_ocurrencia',
+                   'TH_DF', 'TH_SE', 'TH_RU', 'TH_OTRO', 'situacion_actual_des', 'descripcion_relato', 'in_fgn_inactivos']
+
+df = df[columns_to_keep]
+# Ordenar el DataFrame
+df.sort_values(by=['codigo_unico_fuente', 'documento'], ascending=[False, False], inplace=True)
+# Mantener el registro más completo por cada persona identificada de forma única
+df.drop_duplicates(subset='codigo_unico_fuente', keep='first', inplace=True)
+# Eliminar columnas auxiliares
+df.drop(columns=['situacion_actual_des'], inplace=True)
+# Guardar el DataFrame en un archivo
+df.to_stata("archivos depurados/BD_FGN_INACTIVOS.dta")
+# Contar el número de registros
+count = len(df)
+# Crear una variable de grupo 'g' basada en 'codigo_unico_fuente'
+df['g'] = df.groupby('codigo_unico_fuente').ngroup()
+# Calcular el resumen por grupo 'g'
+group_summary = df.groupby('g').size().reset_index(name='count')
+# Eliminar la variable de grupo 'g'
+df.drop(columns=['g'], inplace=True)

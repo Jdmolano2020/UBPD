@@ -238,4 +238,44 @@ df.loc[(df['TH_DF'] == 0) & (df['TH_RU'] == 0) & (df['TH_SE'] == 0) &
        (df['tipo_de_hecho'].str.contains("DETERMINAR") == False) &
        (df['tipo_de_hecho'] != ""), 'TH_OTRO'] = 1
 
-conteo = df['presunto_responsable'].value_counts()
+# Eliminar la columna tipo_de_hecho
+# #df.drop(columns=['tipo_de_hecho'], inplace=True)
+# Relato
+# Convertir la variable descripcion_relato a mayúsculas
+df['descripcion_relato'] = df['descripcion_relato'].str.upper()
+# Datos sobre las personas dadas por desparecidas
+# Nombres y apelllidos
+# Corrección del uso de artículos y preposiciones en los nombres
+# Reemplazar valores en segundo_nombre
+df['i'] = (df['segundo_nombre'].isin(["DEL", "DE", "DE LAS", "DE LOS"]))
+df.loc[df['i'], 'segundo_nombre'] = df['segundo_nombre'] + " " + df['primer_apellido']
+df.loc[df['i'], 'primer_apellido'] = df['segundo_apellido']
+df.loc[df['i'], 'segundo_apellido'] = ""
+df.drop(columns=['i'], inplace=True)
+# Reemplazar valores en primer_apellido
+df['i'] = (df['primer_apellido'].isin(["DEL", "DE", "DE LAS", "DE LOS"]))
+df.loc[df['i'], 'primer_apellido'] = df['primer_apellido'] + " " + df['segundo_apellido']
+df.loc[df['i'], 'segundo_apellido'] = ""
+df.drop(columns=['i'], inplace=True)
+# Reemplazar primer apellido por segundo apellido cuando el primer campo está vacío
+df['i'] = (df['primer_apellido'] == "") & (df['segundo_apellido'] != "")
+df.loc[df['i'], 'primer_apellido'] = df['segundo_apellido']
+df.loc[df['i'], 'segundo_apellido'] = ""
+df.drop(columns=['i'], inplace=True)
+# Eliminar nombres y apellidos cuando solo se registra la letra inicial
+cols_to_clean = ['primer_nombre', 'primer_apellido', 'segundo_nombre', 'segundo_apellido']
+for col in cols_to_clean:
+    df.loc[df[col].str.len() == 1, col] = ""
+# Nombre completo
+cols_nombre = [ 'segundo_nombre', 'primer_apellido', 'segundo_apellido']
+df['nombre_completo_'] = df['primer_nombre']
+for col in cols_nombre:
+    if  (~df[col] == ""):
+        df['nombre_completo'] + " " + df[col]  # Concatenar nombres y apellidos no vacíos
+    
+df['nombre_completo_'] = df['nombre_completo'].str.strip()  # Eliminar espacios en blanco al principio y al final
+df['nombre_completo_'] = df['nombre_completo'].str.replace('  ', ' ', regex=True)  # Reemplazar espacios dobles por espacios simples
+# Eliminar columna nombre_completo original
+df.drop(columns=['nombre_completo_'], inplace=True)
+# Renombrar columna
+df.rename(columns={'nombre_completo': 'nombre_completo'}, inplace=True)

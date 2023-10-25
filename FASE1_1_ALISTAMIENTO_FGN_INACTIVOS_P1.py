@@ -142,7 +142,10 @@ na_values = {
     'NO SABE': np.nan,
     'DESCONOCIDO': np.nan,
     'POR DEFINIR': np.nan,
-    'POR ESTABLECER': np.nan
+    'POR ESTABLECER': np.nan,
+    'NONE': np.nan,
+    'SIN INFORMACION EN EL EXPEDIENTE': np.nan,
+    'NaT': np.nan
 }
 
 df[variables_a_convertir] = df[variables_a_convertir].replace(na_values)
@@ -151,8 +154,7 @@ df[variables_a_convertir] = df[variables_a_convertir].replace(na_values)
 # Datos sobre los hechos	
 # Lugar de ocurrencia- País/Departamento/Muncipio
 # Crear la variable 'pais_ocurrencia' basada en 'pais_de_ocurrencia'
-df['pais_ocurrencia'] = np.where(df['pais_de_ocurrencia'] == 57, 'COLOMBIA',
-                                   None)
+df['pais_ocurrencia'] = np.where((df['pais_de_ocurrencia'] == '57'),'COLOMBIA',None)
 # #df.drop(columns=['pais_de_ocurrencia'], inplace=True)
 # Realizar un merge con el archivo DIVIPOLA_departamentos_122021.dta
 dane = pd.read_stata(
@@ -189,9 +191,9 @@ df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('179', '197', n=1)
 df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('169', '196', n=1)
 df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('159', '195', n=1)
 
-df['fecha_desaparicion'] = df['fecha_ocur_anio'] + "-" + df['fecha_ocur_mes'] + "-" + df['fecha_ocur_dia']
-df['fecha_desaparicion'] = df['fecha_ocur_anio'].str.replace('NaT--', '', n=1)
-
+df['fecha_desaparicion_0'] = df['fecha_ocur_anio'] + "-" + df['fecha_ocur_mes'] + "-" + df['fecha_ocur_dia']
+df['fecha_desaparicion'] = pd.to_datetime(df['fecha_desaparicion_0'], format='%Y-%m-%d', errors='coerce')
+# #df['fecha_desaparicion'] = df['fecha_ocur_anio'].str.replace('NaT--', '', n=1)
 # Tipo de responsable
 # Paramilitares
 FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES.homologar_paramilitares(df)
@@ -272,7 +274,7 @@ cols_nombre = [ 'segundo_nombre', 'primer_apellido', 'segundo_apellido']
 df['nombre_completo_'] = df['primer_nombre']
 
 for col in cols_nombre:
-    df['nombre_completo_'] + " " + df[col].fillna("")  # Concatenar nombres y apellidos no vacíos
+    df['nombre_completo_'] = df['nombre_completo_'] + " " + df[col].fillna("")  # Concatenar nombres y apellidos no vacíos
     
 df['nombre_completo_'] = df['nombre_completo_'].str.strip()  # Eliminar espacios en blanco al principio y al final
 df['nombre_completo_'] = df['nombre_completo_'].str.replace('  ', ' ', regex=True)  # Reemplazar espacios dobles por espacios simples

@@ -1,11 +1,11 @@
 USE [ubpd_base]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_RU]    Script Date: 19/10/2023 10:50:18 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_RU]    Script Date: 25/10/2023 10:14:17 a. m. ******/
 DROP PROCEDURE [dbo].[CONSULTA_V_CNMH_RU]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_RU]    Script Date: 19/10/2023 10:50:18 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_RU]    Script Date: 25/10/2023 10:14:17 a. m. ******/
 SET ANSI_NULLS ON
 GO
 
@@ -19,6 +19,7 @@ GO
 -- Description:	Realiza la consulta de las personas desaparecidas de la fuente CNMH_RU
 -- =============================================
 CREATE PROCEDURE [dbo].[CONSULTA_V_CNMH_RU]
+WITH RECOMPILE 
 AS
 BEGIN
   SET NOCOUNT ON;
@@ -42,7 +43,7 @@ BEGIN
 	personas.NombresApellidos AS Nombres_Apellidos,
 	personas.SobreNombreAlias AS sobre_nombre_alias, 
 	personas.Sexo, 
-	personas.Orientación_Sexual AS orientacion_sexual,
+	personas.OrientaciÃ³n_Sexual AS orientacion_sexual,
 	personas.FechaNacimiento, 
 	personas.Edad, 
 	personas.DescripcionEdad AS descripcion_edad, 
@@ -92,7 +93,7 @@ BEGIN
 	personas.EspeficicacionPresuntoResponsable AS espeficicacion_presunto_responsable, 
 	personas.ObservacionesGrupoArmado1 AS observaciones_grupo_armado1,
 	personas.RangoFuerzasArmadas AS rango_fuerzas_armadas,
-	personas.Descripción_Rango_Fuerzas_Armadas_Estatales AS descripcion_rango_fuerzas_armadas_estatales, 
+	personas.DescripciÃ³n_Rango_Fuerzas_Armadas_Estatales AS descripcion_rango_fuerzas_armadas_estatales, 
 	personas.RangoGrupoArmado AS rango_grupo_armado,
 	personas.DescripcionRangoGrupoArmado AS descripcion_rango_grupo_armado, 
 	personas.MUN_FINALI AS Mun_finali, 
@@ -112,7 +113,7 @@ BEGIN
 	casos.Area_Rural AS area_rural,
 	casos.Corregimiento AS corregimiento,
 	casos.Vereda AS vereda,
-	casos.CódigoCentroPoblado AS codigo_centro_poblado,
+	casos.CÃ³digoCentroPoblado AS codigo_centro_poblado,
 	casos.CentroPoblado AS centro_poblado,
 	casos.TipoCentroPoblado AS tipo_centro_poblado,
 	casos.SITIO AS sitio,
@@ -160,5 +161,4 @@ BEGIN
 		LEFT JOIN [dbo].[V_CNMH_RU_C] casos ON casos.IdCaso = personas.IdCaso
 END
 GO
-
 

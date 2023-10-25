@@ -1,11 +1,11 @@
 USE [ubpd_base]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_JEP_CEV]    Script Date: 19/10/2023 10:51:15 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_JEP_CEV]    Script Date: 25/10/2023 10:14:51 a. m. ******/
 DROP PROCEDURE [dbo].[CONSULTA_V_JEP_CEV]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_JEP_CEV]    Script Date: 19/10/2023 10:51:15 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_JEP_CEV]    Script Date: 25/10/2023 10:14:51 a. m. ******/
 SET ANSI_NULLS ON
 GO
 
@@ -21,6 +21,7 @@ GO
 -- Description:	Realiza la consulta de las personas desaparecidas de la fuente JEP_CEV
 -- =============================================
 CREATE   PROCEDURE [dbo].[CONSULTA_V_JEP_CEV]
+WITH RECOMPILE 
 AS
 BEGIN
   SET NOCOUNT ON;
@@ -89,5 +90,4 @@ BEGIN
 	  FROM [ORQ_SALIDA].[CONSOLIDADO_JEP] personas   
   END
 GO
-
 

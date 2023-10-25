@@ -117,13 +117,13 @@ columns_to_normalize = ['nombre_completo', 'primer_nombre', 'segundo_nombre', 'p
 df[columns_to_normalize] = df[columns_to_normalize].apply(clean_text)
 
 na_values = {
-    'NO APLICA': np.nan,
-    'NULL': np.nan,
-    'ND': np.nan,
-    'NA': np.nan,
-    'SIN INFOR': np.nan,
-    'SIN DETERM': np.nan,
-    'POR DEFINIR': np.nan
+    'NO APLICA': None,
+    'NULL': None,
+    'ND': None,
+    'NA': None,
+    'SIN INFOR': None,
+    'SIN DETERM': None,
+    'POR DEFINIR': None
 }
 
 df[columns_to_normalize] = df[columns_to_normalize].replace(na_values)
@@ -145,23 +145,35 @@ df = pd.merge(df, dane, how='left', left_on=['codigo_dane_departamento', 'codigo
 nrow_df = len(df)
 print("Registros despues left dane depto muni:",nrow_df)
 # Fecha de ocurrencia
-df['fecha_ocur_anio'].fillna(value='0', inplace=True)
-df['fecha_ocur_mes'].fillna(value='0', inplace=True)
-df['fecha_ocur_dia'].fillna(value='0', inplace=True)
+#df['fecha_ocur_anio'].fillna(value='0', inplace=True)
+#df['fecha_ocur_mes'].fillna(value='0', inplace=True)
+
 
 #df['fecha_ocur_anio'] = df['fecha_ocur_anio'].astype(int).astype(str)
 #df['fecha_ocur_mes'] = df['fecha_ocur_mes'].astype(int).astype(str)
-#df['fecha_ocur_dia'] = df['fecha_ocur_dia'].astype(int).astype(str)
+df['fecha_ocur_dia_0'] = df['fecha_ocur_dia'].astype(str)
+df['fecha_ocur_dia_0'].fillna(value="0", inplace=True)
+df['fecha_ocur_dia_0'] = df['fecha_ocur_dia_0'].replace(np.nan, '0')
+df['fecha_ocur_dia_0']=df['fecha_ocur_dia_0'].str.replace("nan", "0", regex=True)
+df['fecha_ocur_dia_0']=df['fecha_ocur_dia_0'].str.replace(".0", "", regex=True).str.zfill(2) 
 
+df['fecha_ocur_mes_0'] = df['fecha_ocur_mes'].astype(str)
+df['fecha_ocur_mes_0'].fillna(value="0", inplace=True)
+df['fecha_ocur_mes_0'] = df['fecha_ocur_mes_0'].replace(np.nan, '0')
+df['fecha_ocur_mes_0']=df['fecha_ocur_mes_0'].str.replace("nan", "0", regex=True)
+df['fecha_ocur_mes_0']=df['fecha_ocur_mes_0'].str.replace(".0", "", regex=True).str.zfill(2) 
 
 # #df['fecha_ocur_mes'] = df['fecha_ocur_mes'].str.zfill(2)
 # #df['fecha_ocur_dia'] = df['fecha_ocur_dia'].str.zfill(2)
 # #df['fecha_ocur_anio'] = df['fecha_ocur_anio'].apply(lambda x: x if len(str(x)) == 4 else "")
-df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace("18", "19", n=1)
-df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace("179", "197", n=1)
-df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace("169", "196", n=1)
-df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace("159", "195", n=1)
-df['fecha_desaparicion_0'] = df['fecha_ocur_anio'].astype(int).astype(str) + df['fecha_ocur_mes'].astype(int).astype(str) + df['fecha_ocur_dia'].astype(int).astype(str)
+df['fecha_ocur_anio_0'] = df['fecha_ocur_anio'].astype(str).str.slice(0, 4)
+df['fecha_ocur_anio_0']=df['fecha_ocur_anio_0'].str.replace("nan", "0000", regex=True)
+df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("18", "19", n=1)
+df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("179", "197", n=1)
+df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("169", "196", n=1)
+df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("159", "195", n=1)
+
+df['fecha_desaparicion_0'] = df['fecha_ocur_anio_0'] + df['fecha_ocur_mes_0'] + df['fecha_ocur_dia_0']
 df['fecha_desaparicion_dtf'] = pd.to_datetime(df['fecha_desaparicion_0'], format='%Y%m%d', errors='coerce')
 # #df.drop(columns=['fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia'], inplace=True)
 # #df.dropna(subset=['fecha_desaparicion_dtf'], inplace=True)

@@ -26,12 +26,15 @@ AS
 BEGIN
   SET NOCOUNT ON;
   SELECT 
+	personas.fuente,
+	personas.[Nombre Completo] AS nombre_completo,
 	personas.[Primer Nombre] AS primer_nombre,
 	personas.[Segundo Nombre] AS segundo_nombre,
 	personas.[Primer Apellido] AS primer_apellido,
     personas.[Segundo Apellido] AS segundo_apellido, 
 	personas.documento, 
 	personas.sexo, 
+	personas.[Pais de ocurrencia] AS pais_ocurrencia,
 	personas.edad_des_inf,
     personas.edad_des_sup,
     personas.anio_nacimiento, 

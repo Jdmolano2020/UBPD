@@ -35,6 +35,39 @@ def clean_text(text):
 def concat_values(*args):
     return ' '.join(arg for arg in args if arg.strip())
 
+def fechas_validas(df : pd, fecha_dia, fecha_mes, fecha_anio, fecha):  
+    df[fecha_anio] = np.where(df[fecha_anio] < 1900, np.nan, df[fecha_anio])
+    df[fecha_mes] = np.where((df[fecha_mes] < 1) | (df[fecha_mes] > 12) & (df[fecha_mes] != np.nan), np.nan, df[fecha_mes])
+    df[fecha_dia] = np.where((df[fecha_dia] < 1) | (df[fecha_dia] > 31) & (df[fecha_dia] != np.nan), np.nan, df[fecha_dia])
+    # Crear columna fecha en formato datetime
+    df['fecha_dia'] = df[fecha_dia].astype(str)
+    df['fecha_dia'].fillna(value="0", inplace=True)
+    df['fecha_dia'] = df['fecha_dia'].replace(np.nan, '0')
+    df['fecha_dia'] = df['fecha_dia'].str.replace("nan", "0", regex=True)
+    df['fecha_dia'] = df['fecha_dia'].str.replace(".0", "", regex=True).str.zfill(2) 
+    
+    df['fecha_mes'] = df[fecha_mes].astype(str)
+    df['fecha_mes'].fillna(value="0", inplace=True)
+    df['fecha_mes'] = df['fecha_mes'].replace(np.nan, '0')
+    df['fecha_mes'] = df['fecha_mes'].str.replace("nan", "0", regex=True)
+    df['fecha_mes'] = df['fecha_mes'].str.replace(".0", "", regex=True).str.zfill(2) 
+    
+    df['fecha_anio'] = df[fecha_anio].astype(str).str.slice(0, 4)
+    df['fecha_anio'] = df['fecha_anio'].str.replace("nan", "0000", regex=True)
+        
+    df['fecha_ymd'] = df['fecha_anio'] + df['fecha_mes'] + df['fecha_dia']
+    
+    df['fecha_ymd_dtf'] = pd.to_datetime(df['fecha_ymd'], format='%Y%m%d', errors='coerce')
+    df['fecha_anio'] = np.where((df['fecha_ymd_dtf'].isna()),None, df['fecha_anio'])
+    df['fecha_mes'] = np.where(df['fecha_ymd_dtf'].isna(),None, df['fecha_mes'])
+    df['fecha_dia'] = np.where(df['fecha_ymd_dtf'].isna(),None, df['fecha_dia'])
+    df.loc[df['fecha_ymd_dtf'].isna(), 'fecha_ymd_dtf'] = None
+    
+    df.drop(columns=[fecha_anio, fecha_mes, fecha_dia, 'fecha_ymd'], inplace=True)
+    df.rename(columns={'fecha_anio': fecha_anio, 
+                       'fecha_mes': fecha_mes, 
+                       'fecha_dia': fecha_dia,
+                       'fecha_ymd_dtf':fecha}, inplace=True)
 
 # parametros programa stata
 parametro_ruta = ""
@@ -144,37 +177,9 @@ df = pd.merge(df, dane, how='left', left_on=['codigo_dane_departamento', 'codigo
                 right_on=['codigo_dane_departamento', 'codigo_dane_municipio'])
 nrow_df = len(df)
 print("Registros despues left dane depto muni:",nrow_df)
+
 # Fecha de ocurrencia
-df['fecha_ocur_dia_0'] = df['fecha_ocur_dia'].astype(str)
-df['fecha_ocur_dia_0'].fillna(value="0", inplace=True)
-df['fecha_ocur_dia_0'] = df['fecha_ocur_dia_0'].replace(np.nan, '0')
-df['fecha_ocur_dia_0'] = df['fecha_ocur_dia_0'].str.replace("nan", "0", regex=True)
-df['fecha_ocur_dia_0'] = df['fecha_ocur_dia_0'].str.replace(".0", "", regex=True).str.zfill(2) 
-
-df['fecha_ocur_mes_0'] = df['fecha_ocur_mes'].astype(str)
-df['fecha_ocur_mes_0'].fillna(value="0", inplace=True)
-df['fecha_ocur_mes_0'] = df['fecha_ocur_mes_0'].replace(np.nan, '0')
-df['fecha_ocur_mes_0'] = df['fecha_ocur_mes_0'].str.replace("nan", "0", regex=True)
-df['fecha_ocur_mes_0'] = df['fecha_ocur_mes_0'].str.replace(".0", "", regex=True).str.zfill(2) 
-
-df['fecha_ocur_anio_0'] = df['fecha_ocur_anio'].astype(str).str.slice(0, 4)
-df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("nan", "0000", regex=True)
-df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("18", "19", n=1)
-df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("179", "197", n=1)
-df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("169", "196", n=1)
-df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("159", "195", n=1)
-
-df['fecha_desaparicion_0'] = df['fecha_ocur_anio_0'] + df['fecha_ocur_mes_0'] + df['fecha_ocur_dia_0']
-df['fecha_desaparicion_dtf'] = pd.to_datetime(df['fecha_desaparicion_0'], format='%Y%m%d', errors='coerce')
-df['fecha_ocur_anio_0'] = np.where((df['fecha_desaparicion_dtf'].isna()),None, df['fecha_ocur_anio_0'])
-df['fecha_ocur_mes_0'] = np.where(df['fecha_desaparicion_dtf'].isna(),None, df['fecha_ocur_mes_0'])
-df['fecha_ocur_dia_0'] = np.where(df['fecha_desaparicion_dtf'].isna(),None, df['fecha_ocur_dia_0'])
-df.loc[df['fecha_desaparicion_dtf'].isna(), 'fecha_desaparicion_dtf'] = None
-
-df.drop(columns=['fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 'fecha_desaparicion_0'], inplace=True)
-df.rename(columns={'fecha_ocur_anio_0': 'fecha_ocur_anio', 
-                   'fecha_ocur_mes_0': 'fecha_ocur_mes', 
-                   'fecha_ocur_dia_0': 'fecha_ocur_dia'}, inplace=True)
+fechas_validas (df,fecha_dia = 'fecha_ocur_dia', fecha_mes = 'fecha_ocur_mes', fecha_anio = 'fecha_ocur_anio', fecha = 'fecha_desaparicion_dtf')
 # Guardar el DataFrame en un archivo
 # #df.to_stata("archivos depurados/BD_FGN_INACTIVOS.dta", index=False)
 # Convertir la columna "presunto_responsable" a cadena
@@ -291,39 +296,8 @@ df['iden_pertenenciaetnica'] = np.where(df['iden_pertenenciaetnica_'].str.contai
 # Eliminar la columna original
 df.drop(columns=['iden_pertenenciaetnica_'], inplace=True)
 # Validar rango de fecha de nacimiento
-df['anio_nacimiento'] = np.where(df['anio_nacimiento'] < 1900, np.nan, df['anio_nacimiento'])
-df['mes_nacimiento'] = np.where((df['mes_nacimiento'] < 1) | (df['mes_nacimiento'] > 12) & (df['mes_nacimiento'] != np.nan), np.nan, df['mes_nacimiento'])
-df['dia_nacimiento'] = np.where((df['dia_nacimiento'] < 1) | (df['dia_nacimiento'] > 31) & (df['dia_nacimiento'] != np.nan), np.nan, df['dia_nacimiento'])
-# Crear columna 'fecha_nacimiento' en formato datetime
-df['fecha_dia'] = df['dia_nacimiento'].astype(str)
-df['fecha_dia'].fillna(value="0", inplace=True)
-df['fecha_dia'] = df['fecha_dia'].replace(np.nan, '0')
-df['fecha_dia'] = df['fecha_dia'].str.replace("nan", "0", regex=True)
-df['fecha_dia'] = df['fecha_dia'].str.replace(".0", "", regex=True).str.zfill(2) 
+fechas_validas (df,fecha_dia = 'dia_nacimiento', fecha_mes = 'mes_nacimiento', fecha_anio = 'anio_nacimiento', fecha = 'fecha_nacimiento')
 
-df['fecha_mes'] = df['mes_nacimiento'].astype(str)
-df['fecha_mes'].fillna(value="0", inplace=True)
-df['fecha_mes'] = df['fecha_mes'].replace(np.nan, '0')
-df['fecha_mes'] = df['fecha_mes'].str.replace("nan", "0", regex=True)
-df['fecha_mes'] = df['fecha_mes'].str.replace(".0", "", regex=True).str.zfill(2) 
-
-df['fecha_anio'] = df['anio_nacimiento'].astype(str).str.slice(0, 4)
-df['fecha_anio'] = df['fecha_anio'].str.replace("nan", "0000", regex=True)
-
-
-df['fecha_ymd'] = df['fecha_anio'] + df['fecha_mes'] + df['fecha_dia']
-
-df['fecha_ymd_dtf'] = pd.to_datetime(df['fecha_ymd'], format='%Y%m%d', errors='coerce')
-df['fecha_anio'] = np.where((df['fecha_ymd_dtf'].isna()),None, df['fecha_anio'])
-df['fecha_mes'] = np.where(df['fecha_ymd_dtf'].isna(),None, df['fecha_mes'])
-df['fecha_dia'] = np.where(df['fecha_ymd_dtf'].isna(),None, df['fecha_dia'])
-df.loc[df['fecha_ymd_dtf'].isna(), 'fecha_ymd_dtf'] = None
-
-df.drop(columns=['anio_nacimiento', 'mes_nacimiento', 'dia_nacimiento', 'fecha_ymd'], inplace=True)
-df.rename(columns={'fecha_anio': 'anio_nacimiento', 
-                   'fecha_mes': 'mes_nacimiento', 
-                   'fecha_dia': 'dia_nacimiento',
-                   'fecha_ymd_dtf':'fecha_nacimiento'}, inplace=True)
 # Validar rango de edad
 df['edad_des_inf'].fillna(value=0, inplace=True)
 df['edad_des_sup'].fillna(value=0, inplace=True)

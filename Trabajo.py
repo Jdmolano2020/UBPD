@@ -145,29 +145,20 @@ df = pd.merge(df, dane, how='left', left_on=['codigo_dane_departamento', 'codigo
 nrow_df = len(df)
 print("Registros despues left dane depto muni:",nrow_df)
 # Fecha de ocurrencia
-#df['fecha_ocur_anio'].fillna(value='0', inplace=True)
-#df['fecha_ocur_mes'].fillna(value='0', inplace=True)
-
-
-#df['fecha_ocur_anio'] = df['fecha_ocur_anio'].astype(int).astype(str)
-#df['fecha_ocur_mes'] = df['fecha_ocur_mes'].astype(int).astype(str)
 df['fecha_ocur_dia_0'] = df['fecha_ocur_dia'].astype(str)
 df['fecha_ocur_dia_0'].fillna(value="0", inplace=True)
 df['fecha_ocur_dia_0'] = df['fecha_ocur_dia_0'].replace(np.nan, '0')
-df['fecha_ocur_dia_0']=df['fecha_ocur_dia_0'].str.replace("nan", "0", regex=True)
-df['fecha_ocur_dia_0']=df['fecha_ocur_dia_0'].str.replace(".0", "", regex=True).str.zfill(2) 
+df['fecha_ocur_dia_0'] = df['fecha_ocur_dia_0'].str.replace("nan", "0", regex=True)
+df['fecha_ocur_dia_0'] = df['fecha_ocur_dia_0'].str.replace(".0", "", regex=True).str.zfill(2) 
 
 df['fecha_ocur_mes_0'] = df['fecha_ocur_mes'].astype(str)
 df['fecha_ocur_mes_0'].fillna(value="0", inplace=True)
 df['fecha_ocur_mes_0'] = df['fecha_ocur_mes_0'].replace(np.nan, '0')
-df['fecha_ocur_mes_0']=df['fecha_ocur_mes_0'].str.replace("nan", "0", regex=True)
-df['fecha_ocur_mes_0']=df['fecha_ocur_mes_0'].str.replace(".0", "", regex=True).str.zfill(2) 
+df['fecha_ocur_mes_0'] = df['fecha_ocur_mes_0'].str.replace("nan", "0", regex=True)
+df['fecha_ocur_mes_0'] = df['fecha_ocur_mes_0'].str.replace(".0", "", regex=True).str.zfill(2) 
 
-# #df['fecha_ocur_mes'] = df['fecha_ocur_mes'].str.zfill(2)
-# #df['fecha_ocur_dia'] = df['fecha_ocur_dia'].str.zfill(2)
-# #df['fecha_ocur_anio'] = df['fecha_ocur_anio'].apply(lambda x: x if len(str(x)) == 4 else "")
 df['fecha_ocur_anio_0'] = df['fecha_ocur_anio'].astype(str).str.slice(0, 4)
-df['fecha_ocur_anio_0']=df['fecha_ocur_anio_0'].str.replace("nan", "0000", regex=True)
+df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("nan", "0000", regex=True)
 df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("18", "19", n=1)
 df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("179", "197", n=1)
 df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("169", "196", n=1)
@@ -175,7 +166,59 @@ df['fecha_ocur_anio_0'] = df['fecha_ocur_anio_0'].str.replace("159", "195", n=1)
 
 df['fecha_desaparicion_0'] = df['fecha_ocur_anio_0'] + df['fecha_ocur_mes_0'] + df['fecha_ocur_dia_0']
 df['fecha_desaparicion_dtf'] = pd.to_datetime(df['fecha_desaparicion_0'], format='%Y%m%d', errors='coerce')
-# #df.drop(columns=['fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia'], inplace=True)
-# #df.dropna(subset=['fecha_desaparicion_dtf'], inplace=True)
+df['fecha_ocur_anio_0'] = np.where((df['fecha_desaparicion_dtf'].isna()),None, df['fecha_ocur_anio_0'])
+df['fecha_ocur_mes_0'] = np.where(df['fecha_desaparicion_dtf'].isna(),None, df['fecha_ocur_mes_0'])
+df['fecha_ocur_dia_0'] = np.where(df['fecha_desaparicion_dtf'].isna(),None, df['fecha_ocur_dia_0'])
+df.loc[df['fecha_desaparicion_dtf'].isna(), 'fecha_desaparicion_dtf'] = None
+
+df.drop(columns=['fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 'fecha_desaparicion_0'], inplace=True)
+df.rename(columns={'fecha_ocur_anio_0': 'fecha_ocur_anio', 
+                   'fecha_ocur_mes_0': 'fecha_ocur_mes', 
+                   'fecha_ocur_dia_0': 'fecha_ocur_dia'}, inplace=True)
 # Guardar el DataFrame en un archivo
 # #df.to_stata("archivos depurados/BD_FGN_INACTIVOS.dta", index=False)
+# Convertir la columna "presunto_responsable" a cadena
+df['presunto_responsable'] = df['presunto_responsable'].astype(str)
+# Reemplazar las celdas que contienen un punto (".") con un valor vacío ("")
+df['presunto_responsable'] = np.where(df['presunto_responsable'].isna(),"", df['presunto_responsable'])
+# Tipo de responsable
+# Paramilitares
+FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES.homologar_paramilitares(df)
+# Bandas criminales y grupos armados posdesmovilización
+FASE1_HOMOLOGACION_CAMPO_BANDAS_CRIMINALES.homologar_bandas_criminales(df)
+# Fuerza pública y agentes del estado
+FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO.homologar_fuerzapublica(df)
+# FARC
+FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC.homologar_farc(df)
+# ELN
+FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_ELN.homologar_eln(df)
+# Otra guerrilla y grupo guerrillero no determinado
+FASE1_HOMOLOGACION_CAMPO_OTRAS_GUERRILLAS.homologar_otras_guerrillas(df)
+# Otro actor- PENDIENTE
+# Aplicar las condiciones y asignar 1 a pres_resp_otro cuando todas las condiciones se cumplan.
+df['pres_resp_otro'] = 0
+df.loc[(df['presunto_responsable'] != "") &
+       (df['presunto_responsable'] != "X") &
+       (df['presunto_responsable'].str.contains("PENDIENTE") == False) &
+       (df['presunto_responsable'].str.contains("INFORMACION") == False) &
+       (df['presunto_responsable'].str.contains("DETERMINAR") == False) &
+       (df['presunto_responsable'].str.contains("PRECISAR") == False) &
+       (df['presunto_responsable'].str.contains("REFIERE") == False) &
+       (df['presunto_responsable'].str.contains("IDENTIFICADA") == False) &
+       (df['pres_resp_paramilitares'].isna()) &
+       (df['pres_resp_grupos_posdesmov'].isna()) &
+       (df['pres_resp_agentes_estatales'].isna()) &
+       (df['pres_resp_guerr_farc'].isna()) &
+       (df['pres_resp_guerr_eln'].isna()) &
+       (df['pres_resp_guerr_otra'].isna()), 'pres_resp_otro'] = 1
+# Tipos de hechos de interés: Desaparición Forzada, Secuestro y Reclutamiento
+# Convertir la columna "tipo_de_hecho" a cadena
+df['tipo_de_hecho'] = df['tipo_de_hecho'].astype(str)
+# Crear variables binarias basadas en "tipo_de_hecho"
+df['TH_DF'] = (df['tipo_de_hecho'].str.contains("DESAPARICION", case=False) & df['tipo_de_hecho'].str.contains("FORZADA", case=False)).astype(int)
+df['TH_SE'] = (df['tipo_de_hecho'].str.contains("SECUESTRO", case=False)).astype(int)
+df['TH_RU'] = (df['tipo_de_hecho'].str.contains("RECLUTAMIENTO", case=False)).astype(int)
+df['TH_OTRO'] = ((df['TH_DF'] == 0) & (df['TH_SE'] == 0) & (df['TH_RU'] == 0)).astype(int)
+# Convertir el texto en la columna "descripcion_relato" a mayúsculas
+df['descripcion_relato'] = df['descripcion_relato'].str.upper()
+

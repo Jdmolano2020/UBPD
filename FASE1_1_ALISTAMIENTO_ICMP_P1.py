@@ -438,3 +438,5 @@ df.to_sql('BD_ICMP', con=engine, if_exists='replace', index=False)
 
 # #df.to_stata("archivos depurados/BD_ICMP.dta", index=False)
 
+
+

@@ -61,6 +61,77 @@ def fechas_validas(df : pd, fecha_dia, fecha_mes, fecha_anio, fecha):
                        'fecha_dia': fecha_dia,
                        'fecha_ymd_dtf':fecha}, inplace=True)
 
+def fechas_nombres(df : pd, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, nombre_completo):
+    # Eliminar nombres y apellidos que solo tienen una letra inicial
+    preposiciones = ["DEL", "DE", "DE LAS", "DE LOS"]
+    df['i'] = (df[segundo_nombre].isin(preposiciones))
+    df.loc[df['i'], segundo_nombre] = df[segundo_nombre] + " " + df[primer_apellido]
+    df.loc[df['i'], primer_apellido] = df[segundo_apellido]
+    df.loc[df['i'], segundo_apellido] = ""
+    df.drop(columns=['i'], inplace=True)
+
+    # Reemplazar valores en primer_apellido
+    df['i'] = (df[primer_apellido].isin(preposiciones))
+    df.loc[df['i'], primer_apellido] = df[primer_apellido] + " " + df[segundo_apellido]
+    df.loc[df['i'], segundo_apellido] = ""
+    df.drop(columns=['i'], inplace=True)
+    # Reemplazar primer apellido por segundo apellido cuando el primer campo está vacío
+    df['i'] = (df[primer_apellido] == "") & (df[segundo_apellido] != "")
+    df.loc[df['i'], primer_apellido] = df[segundo_apellido]
+    df.loc[df['i'], segundo_apellido] = ""
+    df.drop(columns=['i'], inplace=True)
+    # Eliminar nombres y apellidos cuando solo se registra la letra inicial
+    cols_to_clean = [primer_nombre, primer_apellido, segundo_nombre, segundo_apellido]
+    for col in cols_to_clean:
+        df.loc[df[col].str.len() == 1, col] = ""
+    # Nombre completo
+    cols_nombre = [ segundo_nombre, primer_apellido, segundo_apellido]
+    # Inicializa la columna nombre_completo con el valor de primer_nombre
+    df['nombre_completo_'] = df[primer_nombre]
+
+    for col in cols_nombre:
+        df['nombre_completo_'] = df['nombre_completo_'] + " " + df[col].fillna("")  # Concatenar nombres y apellidos no vacíos
+        
+    df['nombre_completo_'] = df['nombre_completo_'].str.strip()  # Eliminar espacios en blanco al principio y al final
+    df['nombre_completo_'] = df['nombre_completo_'].str.replace('  ', ' ', regex=True)  # Reemplazar espacios dobles por espacios simples
+    # Eliminar columna nombre_completo original
+    df.drop(columns=[nombre_completo], inplace=True)
+    # Renombrar columna
+    df.rename(columns={'nombre_completo_': nombre_completo}, inplace=True)
+
+def documento_valida (df : pd, documento):
+    # Documento de identificación
+    df[documento] = df[documento].str.upper()
+
+    for i in range(256):
+        if i not in [32, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 209]:
+            df[documento] = df[documento].str.replace(chr(i), '', regex=True)
+    df['documento_dep'] = df[documento]
+
+    for i in range(48, 58):
+        df['documento_dep'] = df['documento_dep'].str.replace(chr(i), '', regex=True)
+
+    df[documento] = df.apply(lambda row: '' if row['documento_dep'] == row[documento] and row[documento] != '' else row[documento], axis=1)
+
+    for i in range(256):
+        if i not in [32, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57]:
+            df[documento] = df.apply(lambda row: row[documento].replace(chr(i), '') if ' ' in row[documento] and row['documento_dep'] != row[documento] and row[documento] != '' and row['documento_dep'] != '' else row[documento], axis=1)
+
+    df[documento] = df[documento].str.strip()
+    df[documento] = df[documento].str.replace('   ', ' ', regex=True)
+    df[documento] = df[documento].str.replace('  ', ' ', regex=True)
+    df.drop(columns=['documento_dep'], inplace=True)
+    df[documento] = df.apply(lambda row: '' if len(row[documento]) < 4 else row[documento], axis=1)
+
+def etnia_valida (df : pd, etnia):
+    df.rename(columns={etnia: 'iden_pertenenciaetnica_'}, inplace=True)
+    # Reemplazar valores en la columna etnia
+    df[etnia] = np.where(df['iden_pertenenciaetnica_'] == 'Afrocolombiano', 'NARP', df['iden_pertenenciaetnica_'])
+    df[etnia] = np.where(df['iden_pertenenciaetnica_'].str.contains('Indígena|Nasa'), 'INDIGENA', df[etnia])
+    df[etnia] = np.where(df['iden_pertenenciaetnica_'].str.contains('Ninguno'), 'NINGUNA', df[etnia])
+    # Eliminar la columna original
+    df.drop(columns=['iden_pertenenciaetnica_'], inplace=True)
+
 na_values = ["SIN INFORMACION", "NA", "ND","AI"]
 strig_prueba="Juand Daniw123235234'12234235?¡1__...: Pingüino: Málaga es una ciudad fantástica y en Logroño me pica el... moño"
 nuevo = clean_text(strig_prueba, na_values)

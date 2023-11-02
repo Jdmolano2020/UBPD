@@ -29,7 +29,7 @@ def fechas_validas(df : pd, fecha_dia, fecha_mes, fecha_anio, fecha, fechat):
     df['fecha_anio'] = np.where((df['fecha_ymd_dtf'].isna()),"", df['fecha_anio'])
     df['fecha_mes'] = np.where(df['fecha_ymd_dtf'].isna(),"", df['fecha_mes'])
     df['fecha_dia'] = np.where(df['fecha_ymd_dtf'].isna(),"", df['fecha_dia'])
-    #df['fecha_ymd'] = np.where(df['fecha_ymd_dtf'].isna(),"", df['fecha_ymd'])
+    df['fecha_ymd'] = np.where(df['fecha_ymd_dtf'].isna(),"", df['fecha_ymd'])
     df.loc[df['fecha_ymd_dtf'].isna(), 'fecha_ymd_dtf'] = None
     
     df.drop(columns=[fecha_anio, fecha_mes, fecha_dia], inplace=True)

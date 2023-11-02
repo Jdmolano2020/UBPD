@@ -199,7 +199,7 @@ homologacion.etnia.etnia_valida (df, etnia = 'iden_pertenenciaetnica')
 
 
 homologacion.fecha.fechas_validas (df,fecha_dia = 'dia_nacimiento', fecha_mes = 'mes_nacimiento', fecha_anio = 'anio_nacimiento', fechat = 'fecha_nacimiento', fecha = 'fecha_nacimiento_dft')
-dfr=df[df['codigo_unico_fuente']=='75077291']
+
 # Validar rango de edad
 df['edad_des_inf'].fillna(value=0, inplace=True)
 df['edad_des_sup'].fillna(value=0, inplace=True)
@@ -229,13 +229,17 @@ date_cols = ['fecha_nacimiento_dft', 'fecha_nacimiento', 'anio_nacimiento',
 for col in date_cols:
     df[col] = df[col].where(df['inconsistencia_fechas'] == 0)
 
-  
+condicion = (df['edad_desaparicion_est'].notna()) & (df['edad'].isna())
 
-dfr=df[df['codigo_unico_fuente']=='75077291']  
+# Realiza el reemplazo solo en las filas que cumplan con la condición
+df.loc[condicion, 'edad'] = df.loc[condicion, 'edad_desaparicion_est']  
+
+
 # Eliminar columnas auxiliares y con inconsistencias
 # #df.drop(columns=['edad_desaparicion_est', 'dif_edad', 'inconsistencia_fechas'], inplace=True)
 # Limpiar valores en la columna 'situacion_actual_des'
-df['situacion_actual_des'] = df['situacion_actual_des'].replace('.', '')
+df['situacion_actual_des'] = df['situacion_actual_des'].fillna("")
+
 
 # Identificación de registros que no refieren a personas individualizables (datos almacenados en campos de identificación que refieren a otras entidades)
 # Crear una nueva columna 'non_miss' que cuenta la cantidad de columnas no nulas para cada fila
@@ -274,17 +278,19 @@ df.loc[((df['primer_nombre'].str.contains("RURAL")) & (df['primer_nombre'].str.l
 # Marcar filas que contienen "ALIAS" al principio del primer nombre
 df.loc[df['primer_nombre'].str.startswith("ALIAS "), 'rni'] = 1
 # Marcar filas que contienen "ACTA" en cualquiera de las cuatro columnas de nombres y apellidos
-df.loc[(df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].apply(lambda x: x.str.contains("ACTA")).any(axis=1)), 'rni'] = 1
+df.loc[(df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].apply(lambda x: x.str.contains("ACTA ")).any(axis=1)), 'rni'] = 1
 # Marcar filas que contienen "SIN" en cualquiera de las cuatro columnas de nombres y apellidos
-df.loc[(df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].apply(lambda x: x.str.contains("SIN")).any(axis=1)), 'rni'] = 1
+df.loc[(df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].apply(lambda x: x.str.contains("SIN ")).any(axis=1)), 'rni'] = 1
+#dfr=df[df['codigo_unico_fuente']=='75077119']
 # Marcar filas que contienen "POR" en cualquiera de las cuatro columnas de nombres y apellidos
-df.loc[(df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].apply(lambda x: x.str.contains("POR")).any(axis=1)), 'rni'] = 1
+df.loc[(df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].apply(lambda x: x.str.contains("POR ")).any(axis=1)), 'rni'] = 1
 # Marcar filas con valores comunes de no identificación como "NN", "N", "XX" y "X"
 df.loc[((df['primer_nombre'].isin(["NN", "N", "XX", "X"])) | (df['segundo_nombre'].isin(["NN", "N", "XX", "X"])) | (df['primer_apellido'].isin(["NN", "N", "XX", "X"])) | (df['segundo_apellido'].isin(["NN", "N", "XX", "X"]))), 'rni'] = 1
 # Marcar filas con todas las columnas de nombres y apellidos vacías
 df.loc[(df['primer_nombre'].isna()) & (df['segundo_nombre'].isna()) & (df['primer_apellido'].isna()) & (df['segundo_apellido'].isna()) & (df['codigo_dane_departamento'].isna()) & (df['fecha_ocur_anio'].isna()) & (df['documento'].isna()) & (df['fecha_nacimiento_dft'].isna()), 'rni'] = 1
 # Guardar las filas marcadas como rni en un archivo
 df_rni = df[df['rni'] == 1]
+
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)# Escribir los DataFrames en las tablas correspondientes en la base de datos
 
@@ -312,7 +318,7 @@ columnas = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_no
             'fecha_desaparicion', 'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 
             'codigo_dane_departamento', 'departamento_ocurrencia', 'codigo_dane_municipio', 
             'municipio_ocurrencia', 
-            'TH_DF',  'TH_SE','TH_RU',
+            'TH_DF',  'TH_SE','TH_RU','TH_OTRO',
             'pres_resp_paramilitares',
             'pres_resp_grupos_posdesmov', 'pres_resp_agentes_estatales', 'pres_resp_guerr_farc',
             'pres_resp_guerr_eln', 'pres_resp_guerr_otra', 'pres_resp_otro',

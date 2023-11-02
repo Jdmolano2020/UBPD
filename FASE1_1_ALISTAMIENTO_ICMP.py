@@ -267,9 +267,10 @@ date_cols = ['fecha_nacimiento', 'fecha_desaparicion_dtf', 'fecha_ocur_anio', 'f
 for col in date_cols:
     df[col] = df[col].where(df['inconsistencia_fechas'] == 0)
     
-age_cols = ['edad', 'edad_desaparicion_est']
-for col in age_cols:
-    df[col] = df[col].where(df['inconsistencia_fechas'] == 0)
+condicion = (df['edad_desaparicion_est'].notna()) & (df['edad'].isna())
+# Realiza el reemplazo solo en las filas que cumplan con la condición
+df.loc[condicion, 'edad'] = df.loc[condicion, 'edad_desaparicion_est']
+
 # Eliminar columnas auxiliares y con inconsistencias
 df.drop(columns=['edad_desaparicion_est', 'dif_edad', 'inconsistencia_fechas'], inplace=True)
 # Limpiar valores en la columna 'situacion_actual_des'

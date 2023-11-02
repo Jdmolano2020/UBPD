@@ -2,11 +2,9 @@ import os
 from sqlalchemy import create_engine
 import pandas as pd
 import numpy as np
-import unicodedata
-import re
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
 import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
-import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC 
+import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC
 import FASE1_HOMOLOGACION_CAMPO_BANDAS_CRIMINALES
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_ELN
 import FASE1_HOMOLOGACION_CAMPO_OTRAS_GUERRILLAS
@@ -98,8 +96,9 @@ df['codigo_unico_fuente'] = df['codigo_unico_fuente'].apply(lambda x: f'{x:08.0f
 # #df.to_stata(archivo_utf8, index=False)
 # 1.Selección de variable a homologar
 # Normalización de los campos
-columns_to_normalize = ['nombre_completo', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
-                         'pais_ocurrencia', 'sexo']
+columns_to_normalize = ['nombre_completo', 'primer_nombre', 'segundo_nombre',
+                        'primer_apellido', 'segundo_apellido',
+                         'pais_ocurrencia', 'sexo', 'descripcion_relato']
 df[columns_to_normalize] = df[columns_to_normalize].apply(clean_text)
 
 na_values = {
@@ -109,7 +108,9 @@ na_values = {
     'NA': None,
     'SIN INFOR': None,
     'SIN DETERM': None,
-    'POR DEFINIR': None
+    'POR DEFINIR': None,
+    'NONE': None,
+    'Indeterminado': None
 }
 
 df[columns_to_normalize] = df[columns_to_normalize].replace(na_values)
@@ -132,7 +133,7 @@ nrow_df = len(df)
 print("Registros despues left dane depto muni:",nrow_df)
 
 # Fecha de ocurrencia
-homologacion.fecha.fechas_validas (df,fecha_dia = 'fecha_ocur_dia', fecha_mes = 'fecha_ocur_mes', fecha_anio = 'fecha_ocur_anio', fecha = 'fecha_desaparicion_dtf')
+homologacion.fecha.fechas_validas (df,fecha_dia = 'fecha_ocur_dia', fecha_mes = 'fecha_ocur_mes', fecha_anio = 'fecha_ocur_anio', fecha = 'fecha_desaparicion_dtf', fechat= 'fecha_desaparicion')
 # Guardar el DataFrame en un archivo
 # #df.to_stata("archivos depurados/BD_FGN_INACTIVOS.dta", index=False)
 # Convertir la columna "presunto_responsable" a cadena
@@ -195,8 +196,10 @@ homologacion.documento.documento_valida (df, documento = 'documento')
 # Renombrar la columna
 homologacion.etnia.etnia_valida (df, etnia = 'iden_pertenenciaetnica')
 # Validar rango de fecha de nacimiento
-homologacion.fecha.fechas_validas (df,fecha_dia = 'dia_nacimiento', fecha_mes = 'mes_nacimiento', fecha_anio = 'anio_nacimiento', fecha = 'fecha_nacimiento')
 
+
+homologacion.fecha.fechas_validas (df,fecha_dia = 'dia_nacimiento', fecha_mes = 'mes_nacimiento', fecha_anio = 'anio_nacimiento', fechat = 'fecha_nacimiento', fecha = 'fecha_nacimiento_dft')
+dfr=df[df['codigo_unico_fuente']=='75077291']
 # Validar rango de edad
 df['edad_des_inf'].fillna(value=0, inplace=True)
 df['edad_des_sup'].fillna(value=0, inplace=True)
@@ -210,22 +213,25 @@ df['edad'] = np.where((df['edad_des_inf'] == 0) & (df['edad_des_sup'] == 0), 0, 
 # Eliminar columnas de edad desaparición
 # #df.drop(columns=['edad_des_inf', 'edad_des_sup'], inplace=True)
 # Calcular edad_desaparicion_est y detectar inconsistencias
-df['edad_desaparicion_est'] = ((df['fecha_desaparicion_dtf'].dt.year - df['fecha_nacimiento'].dt.year) -
-                                ((df['fecha_desaparicion_dtf'].dt.month - df['fecha_nacimiento'].dt.month) +
-                                (df['fecha_desaparicion_dtf'].dt.day - df['fecha_nacimiento'].dt.day)) / 12).round()
+df['edad_desaparicion_est'] = ((df['fecha_desaparicion_dtf'].dt.year - df['fecha_nacimiento_dft'].dt.year) -
+                                ((df['fecha_desaparicion_dtf'].dt.month - df['fecha_nacimiento_dft'].dt.month) +
+                                (df['fecha_desaparicion_dtf'].dt.day - df['fecha_nacimiento_dft'].dt.day)) / 12).round()
 df['dif_edad'] = np.abs(df['edad_desaparicion_est'] - df['edad'])
 p90 = df['dif_edad'].quantile(0.90)
 df['inconsistencia_fechas'] = np.where(((df['edad_desaparicion_est'] < 0) | (df['edad_desaparicion_est'] > 100)) & (df['edad_desaparicion_est'].notna()), True, False)
 df['inconsistencia_fechas'] = np.where((df['dif_edad'] > p90) & (df['dif_edad'].notna()), 2, df['inconsistencia_fechas'])
-df['inconsistencia_fechas'] = np.where((df['fecha_nacimiento'] == df['fecha_desaparicion_dtf']) & (df['fecha_nacimiento'].notna()) & (df['fecha_desaparicion_dtf'].notna()), 3, df['inconsistencia_fechas'])
+df['inconsistencia_fechas'] = np.where((df['fecha_nacimiento_dft'] == df['fecha_desaparicion_dtf']) & (df['fecha_nacimiento_dft'].notna()) & (df['fecha_desaparicion_dtf'].notna()), 3, df['inconsistencia_fechas'])
 # Limpiar valores en columnas relacionadas con fechas y edad
-date_cols = ['fecha_nacimiento', 'fecha_desaparicion_dtf', 'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia']
+
+
+date_cols = ['fecha_nacimiento_dft', 'fecha_nacimiento', 'anio_nacimiento',
+             'mes_nacimiento', 'dia_nacimiento','edad','edad_desaparicion_est']
 for col in date_cols:
     df[col] = df[col].where(df['inconsistencia_fechas'] == 0)
-    
-age_cols = ['edad', 'edad_desaparicion_est']
-for col in age_cols:
-    df[col] = df[col].where(df['inconsistencia_fechas'] == 0)
+
+  
+
+dfr=df[df['codigo_unico_fuente']=='75077291']  
 # Eliminar columnas auxiliares y con inconsistencias
 # #df.drop(columns=['edad_desaparicion_est', 'dif_edad', 'inconsistencia_fechas'], inplace=True)
 # Limpiar valores en la columna 'situacion_actual_des'
@@ -276,7 +282,7 @@ df.loc[(df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apell
 # Marcar filas con valores comunes de no identificación como "NN", "N", "XX" y "X"
 df.loc[((df['primer_nombre'].isin(["NN", "N", "XX", "X"])) | (df['segundo_nombre'].isin(["NN", "N", "XX", "X"])) | (df['primer_apellido'].isin(["NN", "N", "XX", "X"])) | (df['segundo_apellido'].isin(["NN", "N", "XX", "X"]))), 'rni'] = 1
 # Marcar filas con todas las columnas de nombres y apellidos vacías
-df.loc[(df['primer_nombre'].isna()) & (df['segundo_nombre'].isna()) & (df['primer_apellido'].isna()) & (df['segundo_apellido'].isna()) & (df['codigo_dane_departamento'].isna()) & (df['fecha_ocur_anio'].isna()) & (df['documento'].isna()) & (df['fecha_nacimiento'].isna()), 'rni'] = 1
+df.loc[(df['primer_nombre'].isna()) & (df['segundo_nombre'].isna()) & (df['primer_apellido'].isna()) & (df['segundo_apellido'].isna()) & (df['codigo_dane_departamento'].isna()) & (df['fecha_ocur_anio'].isna()) & (df['documento'].isna()) & (df['fecha_nacimiento_dft'].isna()), 'rni'] = 1
 # Guardar las filas marcadas como rni en un archivo
 df_rni = df[df['rni'] == 1]
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
@@ -288,12 +294,22 @@ df_rni.to_sql('BD_ICMP_PNI', con=engine, if_exists='replace', index=False)
 # Eliminar las filas marcadas como rni del DataFrame original
 df = df[df['rni'] == 0]
 df.drop(columns=['non_miss', 'rni'], inplace=True)
+
+cols_to_clean = ['sexo','codigo_dane_departamento','departamento_ocurrencia',
+                 'codigo_dane_municipio','municipio_ocurrencia',
+                 'segundo_nombre','segundo_apellido','fecha_nacimiento',
+                 'iden_pertenenciaetnica','situacion_actual_des',
+                 'descripcion_relato','fecha_nacimiento_dft',
+                 'anio_nacimiento', 'mes_nacimiento', 'dia_nacimiento','edad',
+                 'edad_desaparicion_est']
+for col in cols_to_clean:
+    df[col] = df[col].fillna("")
 # 5. Identificación de registros únicos	
 # Seleccionar las columnas que deseas mantener
 columnas = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre', 'segundo_nombre', 
             'primer_apellido', 'segundo_apellido', 'documento', 'sexo', 'iden_pertenenciaetnica', 
             'fecha_nacimiento', 'anio_nacimiento', 'mes_nacimiento', 'dia_nacimiento', 'edad', 
-            'fecha_desaparicion_dtf', 'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 
+            'fecha_desaparicion', 'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 
             'codigo_dane_departamento', 'departamento_ocurrencia', 'codigo_dane_municipio', 
             'municipio_ocurrencia', 
             'TH_DF',  'TH_SE','TH_RU',

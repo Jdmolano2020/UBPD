@@ -23,6 +23,7 @@ def nombres_validos (df : pd, primer_nombre, segundo_nombre, primer_apellido, se
     cols_to_clean = [primer_nombre, primer_apellido, segundo_nombre, segundo_apellido]
     for col in cols_to_clean:
         df.loc[df[col].str.len() == 1, col] = ""
+        df[col] = df[col].fillna("")
     # Nombre completo
     cols_nombre = [ segundo_nombre, primer_apellido, segundo_apellido]
     # Inicializa la columna nombre_completo con el valor de primer_nombre

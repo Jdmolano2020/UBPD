@@ -162,11 +162,25 @@ print("Registros despues left dane depto muni:",nrow_df)
 
 df['ymd_hecho'] = df['fecha_ocur_anio'].astype(str)
 
-df['fecha_ocur_anio'] = pd.to_numeric(df['ymd_hecho'].str[0:4], errors='coerce')
-df['fecha_ocur_mes'] = pd.to_numeric(df['ymd_hecho'].str[5:7], errors='coerce')
-df['fecha_ocur_dia'] = pd.to_numeric(df['ymd_hecho'].str[8:10], errors='coerce')
+df['fecha_ocur_anio'] = df['ymd_hecho'].str[0:4]
+df['fecha_ocur_mes'] = df['ymd_hecho'].str[5:7]
+df['fecha_ocur_dia'] = df['ymd_hecho'].str[8:10]
 
-homologacion.fecha.fechas_validas (df,fecha_dia = 'fecha_ocur_dia', fecha_mes = 'fecha_ocur_mes', fecha_anio = 'fecha_ocur_anio', fecha = 'fecha_desaparicion')
+# #df['fecha_ocur_mes'] = pd.to_datetime(df['fecha_ocur_anio'], format='%Y').dt.month
+# #df['fecha_ocur_dia'] = pd.to_datetime(df['fecha_ocur_anio'], format='%Y').dt.day
+# Eliminar fechas de ocurrencia que no cumplen con los rangos válidos
+df['fecha_ocur_mes'].replace('0', np.nan, inplace=True)
+df['fecha_ocur_dia'].replace('0', np.nan, inplace=True)
+# #df.drop(index=df[(df['fecha_ocur_mes'] < 1) | (df['fecha_ocur_mes'] > 12)].index, inplace=True)
+# #df.drop(index=df[(df['fecha_ocur_dia'] < 1) | (df['fecha_ocur_dia'] > 31)].index, inplace=True)
+df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('18', '19', n=1)
+df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('179', '197', n=1)
+df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('169', '196', n=1)
+df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('159', '195', n=1)
+
+df['fecha_desaparicion_0'] = df['fecha_ocur_anio'] + "-" + df['fecha_ocur_mes'] + "-" + df['fecha_ocur_dia']
+df['fecha_desaparicion'] = pd.to_datetime(df['fecha_desaparicion_0'], format='%Y-%m-%d', errors='coerce')
+# #df['fecha_desaparicion'] = df['fecha_ocur_anio'].str.replace('NaT--', '', n=1)
 # Tipo de responsable
 # Paramilitares
 FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES.homologar_paramilitares(df)
@@ -221,19 +235,77 @@ df['descripcion_relato'] = df['descripcion_relato'].str.upper()
 # Datos sobre las personas dadas por desparecidas
 # Nombres y apelllidos
 # Corrección del uso de artículos y preposiciones en los nombres
-homologacion.nombres.nombres_validos (df , primer_nombre = 'primer_nombre',
-                 segundo_nombre = 'segundo_nombre',
-                 primer_apellido = 'primer_apellido',
-                 segundo_apellido = 'segundo_apellido',
-                 nombre_completo = 'nombre_completo')
+# Reemplazar valores en segundo_nombre
+df['i'] = (df['segundo_nombre'].isin(["DEL", "DE", "DE LAS", "DE LOS"]))
+df.loc[df['i'], 'segundo_nombre'] = df['segundo_nombre'] + " " + df['primer_apellido']
+df.loc[df['i'], 'primer_apellido'] = df['segundo_apellido']
+df.loc[df['i'], 'segundo_apellido'] = ""
+df.drop(columns=['i'], inplace=True)
+# Reemplazar valores en primer_apellido
+df['i'] = (df['primer_apellido'].isin(["DEL", "DE", "DE LAS", "DE LOS"]))
+df.loc[df['i'], 'primer_apellido'] = df['primer_apellido'] + " " + df['segundo_apellido']
+df.loc[df['i'], 'segundo_apellido'] = ""
+df.drop(columns=['i'], inplace=True)
+# Reemplazar primer apellido por segundo apellido cuando el primer campo está vacío
+df['i'] = (df['primer_apellido'] == "") & (df['segundo_apellido'] != "")
+df.loc[df['i'], 'primer_apellido'] = df['segundo_apellido']
+df.loc[df['i'], 'segundo_apellido'] = ""
+df.drop(columns=['i'], inplace=True)
+# Eliminar nombres y apellidos cuando solo se registra la letra inicial
+cols_to_clean = ['primer_nombre', 'primer_apellido', 'segundo_nombre', 'segundo_apellido']
+for col in cols_to_clean:
+    df.loc[df[col].str.len() == 1, col] = ""
+# Nombre completo
+cols_nombre = [ 'segundo_nombre', 'primer_apellido', 'segundo_apellido']
+# Inicializa la columna 'nombre_completo' con el valor de 'primer_nombre'
+df['nombre_completo_'] = df['primer_nombre']
 
+for col in cols_nombre:
+    df['nombre_completo_'] = df['nombre_completo_'] + " " + df[col].fillna("")  # Concatenar nombres y apellidos no vacíos
+    
+df['nombre_completo_'] = df['nombre_completo_'].str.strip()  # Eliminar espacios en blanco al principio y al final
+df['nombre_completo_'] = df['nombre_completo_'].str.replace('  ', ' ', regex=True)  # Reemplazar espacios dobles por espacios simples
+# Eliminar columna nombre_completo original
+df.drop(columns=['nombre_completo'], inplace=True)
+# Renombrar columna
+df.rename(columns={'nombre_completo_': 'nombre_completo'}, inplace=True)
 # Documento
-homologacion.documento.documento_valida (df, documento = 'documento')
+# Eliminar símbolos y caracteres especiales
+# Convertir todos los caracteres a mayúsculas
+df['documento_'] = df['documento'].str.upper()
+# Eliminar caracteres no permitidos en el documento
+for i in range(256):
+    if (i != 32) and (i < 48 or i > 57) and (i < 65 or i > 90) and (i != 209):
+        char = chr(i)
+        df['documento_'] = df['documento_'].str.replace(char, '', regex=False)
+# Eliminar cadenas de texto sin números
+for i in range(48, 58):
+    char = chr(i)
+    df['documento_dep'] = df['documento_'].str.replace(char, '', regex=False)
+df['documento_'] = df.apply(lambda row: row['documento_'] if row['documento_dep'] == row['documento_'] else "", axis=1)
+# Eliminar cadenas complejas de texto tipo anotaciones
+df['documento_'] = df['documento_'].str.replace(r'[^0-9]', '', regex=True)
+
+# Borrar registros de documentos de identificación iguales a '0'
+# #df = df[~df['documento_'].astype(str).str.isnumeric() | (df['documento_'] != "0")]
+# Limpiar espacios en blanco al principio y al final, y reducir espacios múltiples a uno solo
+df['documento_'] = df['documento_'].str.strip()
+df['documento_'] = df['documento_'].str.replace('   ', ' ')
+df['documento_'] = df['documento_'].str.replace('  ', ' ')
+# Eliminar las columnas documento y documento_dep
+df.drop(columns=['documento', 'documento_dep'], inplace=True)
+# Renombrar la columna documento_
+df.rename(columns={'documento_': 'documento'}, inplace=True)
 # Pertenencia_etnica [NARP; INDIGENA; RROM; MESTIZO]
 # Renombrar la columna
 df.rename(columns={'iden_pertenenciaetnica_': 'iden_pertenenciaetnica'}, inplace=True)
-homologacion.etnia.etnia_valida (df, etnia = 'iden_pertenenciaetnica')
 # Recodificar valores
+df['iden_pertenenciaetnica'].replace({"AFROCOLOMBIANO": "NARP",
+                                      "AFROCOLOMBIANOA": "NARP",
+                                      "AFROCOLOMBIANA": "NARP",
+                                      "PALENQUERO": "NARP",
+                                      "RAIZAL": "NARP",
+                                      "NINGUNA": "MESTIZO"}, inplace=True)
 # Fecha de nacimiento- Validar rango
 # Eliminar columnas que empiezan con "anio_nacimiento"
 columns_to_drop = [col for col in df.columns if col.startswith("anio_nacimiento")]
@@ -286,10 +358,6 @@ df_rni.to_sql('BD_FGN_INACTIVOS_PNI', con=engine, if_exists='replace', index=Fal
 df = df[df['rni_'] != df['N']]
 # Eliminar columnas auxiliares
 df.drop(columns=['non_miss', 'rni_', 'N'], inplace=True)
-
-cols_to_clean = ['sexo']
-for col in cols_to_clean:
-    df[col] = df[col].fillna("")
 # 5. Identificación de registros/filas únicas	
 # Seleccionar las columnas especificadas
 columns_to_keep = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre', 'segundo_nombre',

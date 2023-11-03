@@ -1,11 +1,11 @@
 USE [ubpd_base]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_SE]    Script Date: 25/10/2023 10:14:33 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_SE]    Script Date: 3/11/2023 9:57:03 a. m. ******/
 DROP PROCEDURE [dbo].[CONSULTA_V_CNMH_SE]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_SE]    Script Date: 25/10/2023 10:14:33 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_SE]    Script Date: 3/11/2023 9:57:03 a. m. ******/
 SET ANSI_NULLS ON
 GO
 
@@ -37,7 +37,7 @@ BEGIN
     personas.SobreNombreAlias AS sobre_nombre_alias, 
 	personas.sexo, 
 	personas.FechaNacimiento AS fecha_nacimiento,
-	personas.Orientaci贸n_Sexual AS orientacion_sexual,
+	personas.Orientaci髇_Sexual AS orientacion_sexual,
     personas.DescripcionEdad AS descripcion_edad, 
 	personas.etnia, 
 	personas.DescripcionEtnia AS descripcion_etnia, 
@@ -49,25 +49,25 @@ BEGIN
     personas.CargoEmpleadoSectorPrivado AS cargo_empleado_sector_privado, 
 	personas.TipoPoblacionVulnerable AS tipo_poblacion_vulnerable,
     personas.DescripcionOtroTipoPoblacionVulnerable AS descripcion_otro_tipo_poblacion_vulnerable,
-	personas.Organizaci贸n_Civil AS organizacion_civil,
+	personas.Organizaci髇_Civil AS organizacion_civil,
     personas.MilitantePolitico AS militante_politico,
 	personas.DescripcionOtroMilitantePolitico AS descripcion_otro_militante_politico,
 	personas.SituacionActualVictima AS situacion_actual_victima,
-	personas.Observaciones_Situaci贸n_Actual_de_la_V铆ctima AS observaciones_situacion_actual_de_la_victima,
+	personas.Observaciones_Situaci髇_Actual_de_la_V韈tima AS observaciones_situacion_actual_de_la_victima,
 	personas.circustancia_muerte_en_cautiverio,
-	personas.Descripci贸n_Otra_Circustancia_Muerte_en_Cautiverio AS descripcion_otra_circustancia_muerte_en_cautiverio,
-	personas.Tipo_Liberaci贸n AS tipo_liberacion,
-	personas.Descripci贸n_Otro_Tipo_Liberaci贸n AS descripcion_otro_tipo_liberacion,
-	personas.D铆as_Cautiverio AS dias_cautiverio,
+	personas.Descripci髇_Otra_Circustancia_Muerte_en_Cautiverio AS descripcion_otra_circustancia_muerte_en_cautiverio,
+	personas.Tipo_Liberaci髇 AS tipo_liberacion,
+	personas.Descripci髇_Otro_Tipo_Liberaci髇 AS descripcion_otro_tipo_liberacion,
+	personas.D韆s_Cautiverio AS dias_cautiverio,
 	personas.no_veces_secuestrado,
-	personas.Hechos_Simult谩neos_Durante_Periodo AS hechos_simultaneos_durante_periodo,
-	personas.Otro_Hecho_Simult谩neos_Durante_Periodo AS otro_hecho_simultaneos_durante_periodo,
+	personas.Hechos_Simult醤eos_Durante_Periodo AS hechos_simultaneos_durante_periodo,
+	personas.Otro_Hecho_Simult醤eos_Durante_Periodo AS otro_hecho_simultaneos_durante_periodo,
 	personas.grupo,
 	personas.descripcion_grupo,
 	personas.EspeficicacionPresuntoResponsable AS espeficicacion_presunto_responsable,
 	personas.ObservacionesGrupoArmado1 AS observaciones_grupo_armado1,
 	personas.RangoFuerzasArmadas AS rango_fuerzas_armadas,
-	personas.Descripci贸n_Rango_Fuerzas_Armadas_Estatales AS descripcion_rango_fuerzas_armadas_estatales,
+	personas.Descripci髇_Rango_Fuerzas_Armadas_Estatales AS descripcion_rango_fuerzas_armadas_estatales,
 	personas.RangoGrupoArmado AS rango_grupo_armado,
 	personas.DescripcionRangoGrupoArmado AS descripcion_rango_grupo_armado,
 	personas.MESH AS mesh,
@@ -83,19 +83,19 @@ BEGIN
 	casos.area_rural,
 	casos.corregimiento,
 	casos.vereda,
-	casos.C贸digoCentroPoblado AS codigo_centro_poblado,
+	casos.C骴igoCentroPoblado AS codigo_centro_poblado,
 	casos.CentroPoblado AS centro_poblado,
 	casos.TipoCentroPoblado AS tipo_centro_poblado,
 	casos.sitio,
 	casos.territorio_colectivo,
 	casos.resguardo,
 	casos.modalidad,
-	casos.Descripci贸n_de_la_Modalidad AS descripcion_de_la_modalidad,
+	casos.Descripci髇_de_la_Modalidad AS descripcion_de_la_modalidad,
 	casos.modalidad_de_secuestro,
 	casos.tipo_secuestro,
 	casos.finalidad_del_secuestro,
 	casos.descripcion_otra_finalidad,
-	casos.Exigencia_para_la_Liberaci贸n AS exigencia_para_la_liberacion,
+	casos.Exigencia_para_la_Liberaci髇 AS exigencia_para_la_liberacion,
 	casos.DescripcionOtraExigencia AS descripcion_otra_exigencia,
 	casos.PorteListas AS porte_listas,
 	casos.IngresoViviendaFinca AS ingreso_vivienda_finca,
@@ -133,4 +133,5 @@ BEGIN
 
   END
 GO
+
 

@@ -1,16 +1,17 @@
 USE [ubpd_base]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_FGN_INACTIVOS]    Script Date: 25/10/2023 10:15:07 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_FGN_INACTIVOS]    Script Date: 3/11/2023 9:57:28 a. m. ******/
 DROP PROCEDURE [dbo].[CONSULTA_V_FGN_INACTIVOS]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_FGN_INACTIVOS]    Script Date: 25/10/2023 10:15:07 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_FGN_INACTIVOS]    Script Date: 3/11/2023 9:57:28 a. m. ******/
 SET ANSI_NULLS ON
 GO
 
 SET QUOTED_IDENTIFIER ON
 GO
+
 
 
 
@@ -53,7 +54,8 @@ BEGIN
 	personas.situacion_actual_des,
 	personas.pais_de_ocurrencia
   FROM orq_salida.FGN_INACTIVOS AS personas
-
+  WHERE LEN([nombre_completo])>0
   END
 GO
+
 

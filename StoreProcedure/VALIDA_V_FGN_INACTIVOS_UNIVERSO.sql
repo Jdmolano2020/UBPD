@@ -1,11 +1,11 @@
 USE [ubpd_base]
 GO
 
-/****** Object:  StoredProcedure [dbo].[VALIDA_V_ICMP_UNIVERSO]    Script Date: 3/11/2023 10:00:47 a. m. ******/
-DROP PROCEDURE [dbo].[VALIDA_V_ICMP_UNIVERSO]
+/****** Object:  StoredProcedure [dbo].[VALIDA_V_FGN_INACTIVOS_UNIVERSO]    Script Date: 3/11/2023 9:59:09 a. m. ******/
+DROP PROCEDURE [dbo].[VALIDA_V_FGN_INACTIVOS_UNIVERSO]
 GO
 
-/****** Object:  StoredProcedure [dbo].[VALIDA_V_ICMP_UNIVERSO]    Script Date: 3/11/2023 10:00:47 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[VALIDA_V_FGN_INACTIVOS_UNIVERSO]    Script Date: 3/11/2023 9:59:09 a. m. ******/
 SET ANSI_NULLS ON
 GO
 
@@ -22,15 +22,16 @@ GO
 -- Create date: 10/10/2023
 -- Description:	Realiza la consulta de las personas desaparecidas de la fuente V_ICMP
 -- =============================================
-CREATE   PROCEDURE [dbo].[VALIDA_V_ICMP_UNIVERSO]
+CREATE   PROCEDURE [dbo].[VALIDA_V_FGN_INACTIVOS_UNIVERSO]
 WITH RECOMPILE 
 AS
 BEGIN
   SET NOCOUNT ON;
-  IF OBJECT_ID('[dbo].[BD_ICMP_VAL]', 'U') IS NOT NULL
-    DROP TABLE [dbo].[BD_ICMP_VAL]
+  IF OBJECT_ID('[dbo].[BD_FGN_INACTIVOS_VAL]', 'U') IS NOT NULL
+    DROP TABLE [dbo].[BD_FGN_INACTIVOS_VAL]
 
   SELECT A.[tabla_origen]
+	  ,C.[codigo_unico_fuente] AS codigo_unico_fuente_o	
       ,A.[codigo_unico_fuente] AS codigo_unico_fuente_u
       ,B.[codigo_unico_fuente] AS codigo_unico_fuente_i
 	  ,CASE WHEN Coalesce(A.[codigo_unico_fuente],'Nulo') = Coalesce(B.[codigo_unico_fuente],'Nulo') THEN 'Igual' ELSE 'Diferente' END AS codigo_unico_fuente_v
@@ -59,7 +60,7 @@ BEGIN
 	  ,B.[iden_pertenenciaetnica] AS iden_pertenenciaetnic_i
 	  ,CASE WHEN Coalesce(A.[iden_pertenenciaetnica],'Nulo') = Coalesce(B.[iden_pertenenciaetnica],'Nulo') THEN 'Igual' ELSE 'Diferente' END AS iden_pertenenciaetnic_v
 	  ,A.[fecha_nacimiento] AS fecha_nacimiento_u
-	  ,B.[fecha_nacimiento] AS fecha_nacimiento_i
+	  ,B. [fecha_nacimiento] AS fecha_nacimiento_i
 	  ,CASE WHEN Coalesce(CONVERT(VARCHAR,A.[fecha_nacimiento]),'Nulo') = Coalesce(CONVERT(VARCHAR,B.[fecha_nacimiento]),'Nulo') THEN 'Igual' ELSE 'Diferente' END  AS fecha_nacimiento_v
       ,A.[anio_nacimiento] AS anio_nacimiento_u
       ,B.[anio_nacimiento] AS anio_nacimiento_i
@@ -136,14 +137,15 @@ BEGIN
       ,A.[descripcion_relato] AS descripcion_relato_u
       ,B.[descripcion_relato] AS descripcion_relato_i
 	  ,CASE WHEN Coalesce(CONVERT(VARCHAR,A.[descripcion_relato]),'Nulo') = Coalesce(CONVERT(VARCHAR,B.[descripcion_relato]),'Nulo') THEN 'Igual' ELSE 'Diferente' END  AS descripcion_relato_v
-	  INTO [dbo].[BD_ICMP_VAL]
-  FROM [orq_salida].[ICMP] C LEFT JOIN [dbo].[BD_UNIVERSO] A
-			ON C.[Codigo unico fuente] = A.[codigo_unico_fuente]
-			    AND A.tabla_origen = 'ICMP'
-		LEFT JOIN [dbo].[BD_ICMP] B 
-			ON C.[Codigo unico fuente] =  B.[codigo_unico_fuente]
-
+	  INTO [dbo].[BD_FGN_INACTIVOS_VAL]
+  FROM [orq_salida].[FGN_INACTIVOS] C LEFT JOIN [dbo].[BD_UNIVERSO] A
+			ON C.[codigo_unico_fuente] = A.[codigo_unico_fuente]
+			    AND A.tabla_origen = 'FGN_EXP_INACTIVOS'
+		LEFT JOIN [dbo].[BD_FGN_INACTIVOS] B 
+			ON C.[codigo_unico_fuente] =  B.[codigo_unico_fuente]
+			
 	SELECT [tabla_origen]
+	  ,[codigo_unico_fuente_o]	
       ,[codigo_unico_fuente_u]
       ,[codigo_unico_fuente_i]
       ,[codigo_unico_fuente_v]
@@ -249,7 +251,7 @@ BEGIN
       ,[descripcion_relato_u]
       ,[descripcion_relato_i]
       ,[descripcion_relato_v]
-  FROM [dbo].[BD_ICMP_VAL]
+  FROM [dbo].[BD_FGN_INACTIVOS_VAL]
   END
   
 GO

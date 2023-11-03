@@ -1,16 +1,17 @@
 USE [ubpd_base]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_ICMP]    Script Date: 25/10/2023 10:15:24 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_ICMP]    Script Date: 3/11/2023 9:57:53 a. m. ******/
 DROP PROCEDURE [dbo].[CONSULTA_V_ICMP]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_ICMP]    Script Date: 25/10/2023 10:15:24 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_ICMP]    Script Date: 3/11/2023 9:57:53 a. m. ******/
 SET ANSI_NULLS ON
 GO
 
 SET QUOTED_IDENTIFIER ON
 GO
+
 
 
 
@@ -58,4 +59,5 @@ BEGIN
   END
   
 GO
+
 

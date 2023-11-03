@@ -131,7 +131,8 @@ na_values = {
     'POR ESTABLECER': None,
     'NONE': None,
     'SIN INFORMACION EN EL EXPEDIENTE': None,
-    'NaT': None
+    'NaT': None,
+    'NO REGISTRA': None
 }
 
 df[variables_a_convertir] = df[variables_a_convertir].replace(na_values)
@@ -298,6 +299,13 @@ df_rni.to_sql('BD_FGN_INACTIVOS_PNI', con=engine, if_exists='replace', index=Fal
 df = df[df['rni_'] != df['N']]
 # Eliminar columnas auxiliares
 df.drop(columns=['non_miss', 'rni_', 'N'], inplace=True)
+
+cols_to_clean = ['sexo','codigo_dane_departamento','departamento_ocurrencia',
+                 'codigo_dane_municipio','municipio_ocurrencia'
+                 ]
+for col in cols_to_clean:
+    df[col] = df[col].fillna("")
+dfr=df[df['codigo_unico_fuente']=='des7656']    
 # 5. Identificación de registros/filas únicas	
 # Seleccionar las columnas especificadas
 columns_to_keep = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre', 'segundo_nombre',

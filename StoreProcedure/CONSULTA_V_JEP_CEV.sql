@@ -1,11 +1,11 @@
 USE [ubpd_base]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_JEP_CEV]    Script Date: 25/10/2023 10:14:51 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_JEP_CEV]    Script Date: 3/11/2023 9:58:17 a. m. ******/
 DROP PROCEDURE [dbo].[CONSULTA_V_JEP_CEV]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_JEP_CEV]    Script Date: 25/10/2023 10:14:51 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_JEP_CEV]    Script Date: 3/11/2023 9:58:17 a. m. ******/
 SET ANSI_NULLS ON
 GO
 
@@ -90,4 +90,5 @@ BEGIN
 	  FROM [ORQ_SALIDA].[CONSOLIDADO_JEP] personas   
   END
 GO
+
 

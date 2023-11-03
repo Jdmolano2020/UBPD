@@ -1,11 +1,11 @@
 USE [ubpd_base]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_DF]    Script Date: 25/10/2023 10:14:02 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_DF]    Script Date: 3/11/2023 9:53:39 a. m. ******/
 DROP PROCEDURE [dbo].[CONSULTA_V_CNMH_DF]
 GO
 
-/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_DF]    Script Date: 25/10/2023 10:14:02 a. m. ******/
+/****** Object:  StoredProcedure [dbo].[CONSULTA_V_CNMH_DF]    Script Date: 3/11/2023 9:53:39 a. m. ******/
 SET ANSI_NULLS ON
 GO
 
@@ -43,7 +43,7 @@ BEGIN
     personas.SobreNombreAlias AS sobre_nombre_alias, 
 	personas.sexo,
 	personas.FechaNacimiento AS fecha_nacimiento,
-	personas.OrientaciÃ³n_Sexual AS orientacion_sexual,
+	personas.Orientación_Sexual AS orientacion_sexual,
     personas.DescripcionEdad AS descripcion_edad, 
 	personas.etnia, 
 	personas.DescripcionEtnia AS descripcion_etnia, 
@@ -55,7 +55,7 @@ BEGIN
     personas.CargoEmpleadoSectorPrivado AS cargo_empleado_sector_privado,
 	personas.TipoPoblacionVulnerable AS tipo_poblacion_vulnerable,
     personas.DescripcionOtroTipoPoblacionVulnerable AS descripcion_otro_tipo_poblacion_vulnerable,
-	personas.OrganizaciÃ³n_Civil AS organizacion_civil,
+	personas.Organización_Civil AS organizacion_civil,
     personas.MilitantePolitico AS militante_politico,
 	personas.DescripcionOtroMilitantePolitico AS descripcion_otro_militante_politico,
     personas.grupo,
@@ -63,7 +63,7 @@ BEGIN
 	personas.EspeficicacionPresuntoResponsable AS espeficicacion_presunto_responsable,
     personas.ObservacionesGrupoArmado1 AS observaciones_grupo_armado1,
 	personas.RangoFuerzasArmadas AS rango_fuerzas_armadas,
-    personas.DescripciÃ³n_Rango_Fuerzas_Armadas_Estatales AS descripcion_rango_fuerzas_armadas_estatales,
+    personas.Descripción_Rango_Fuerzas_Armadas_Estatales AS descripcion_rango_fuerzas_armadas_estatales,
 	personas.RangoGrupoArmado AS rango_grupo_armado,
     personas.DescripcionRangoGrupoArmado AS descripcion_rango_grupo_armado,
 	personas.AccionesBusquedaFamilias AS acciones_busqueda_familias,
@@ -101,4 +101,5 @@ BEGIN
   END
   
 GO
+
 

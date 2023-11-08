@@ -18,6 +18,7 @@ def documento_valida (df : pd, documento):
         if i not in [32, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57]:
             df[documento] = df.apply(lambda row: row[documento].replace(chr(i), '') if ' ' in row[documento] and row['documento_dep'] != row[documento] and row[documento] != '' and row['documento_dep'] != '' else row[documento], axis=1)
 
+    df[documento] = df[documento].str.replace(r'[^0-9]', '', regex=True)
     df[documento] = df[documento].str.strip()
     df[documento] = df[documento].str.replace('   ', ' ', regex=True)
     df[documento] = df[documento].str.replace('  ', ' ', regex=True)

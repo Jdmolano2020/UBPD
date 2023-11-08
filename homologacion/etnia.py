@@ -5,6 +5,7 @@ def etnia_valida (df : pd, etnia):
     
     df.rename(columns={etnia: 'iden_pertenenciaetnica_'}, inplace=True)
     # Reemplazar valores en la columna etnia
+    
     df[etnia] = np.where((df['iden_pertenenciaetnica_'] =='Afrocolombiano'), 'NARP', df['iden_pertenenciaetnica_'])
     df[etnia].replace({"AFROCOLOMBIANO": "NARP",
                         "AFROCOLOMBIANOA": "NARP",
@@ -14,6 +15,9 @@ def etnia_valida (df : pd, etnia):
                         "NINGUNA": "MESTIZO"}, inplace=True)
     df[etnia] = np.where((df['iden_pertenenciaetnica_'].str.contains('Indígena|Nasa')), 'INDIGENA', df[etnia])
     df[etnia] = np.where((df['iden_pertenenciaetnica_'].str.contains('Ninguno')), 'NINGUNA', df[etnia])
+    
+    df[etnia].replace({"ROM": "RROM"}, inplace=True)
+
     
     na_values = {
         'NO APLICA': None,
@@ -28,6 +32,8 @@ def etnia_valida (df : pd, etnia):
     }
 
     df[etnia] = df[etnia].replace(na_values)
+    df[etnia] =np.where( df[etnia] == "", "NINGUNA",df[etnia])
+
     df[etnia] = df[etnia].fillna("")
     # Eliminar la columna original
     df.drop(columns=['iden_pertenenciaetnica_'], inplace=True)

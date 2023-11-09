@@ -116,7 +116,7 @@ na_values = {
     "SIN INFORMACION": np.nan,
     "ND": np.nan,
     "AI": np.nan,
-    'NONE': None,
+    'NONE': None
 }
 # Lista de columnas que serán limpiadas
 variables_limpieza = [

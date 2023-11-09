@@ -111,7 +111,8 @@ cnmh['tabla_origen'] = "CNMH_RU"
 na_values = {
     "SIN INFORMACION": np.nan,
     "ND": np.nan,
-    "AI": np.nan
+    "AI": np.nan,
+    'NONE': None
 }
 # Lista de variables a limpiar
 variables_limpieza = ["zon_id_lugar_del_hecho", "muninicio_caso", "depto_caso", "nacionalidad",
@@ -430,6 +431,7 @@ resumen_documento = cnmh[
 cnmh["sexo"] = cnmh["sexo"].apply(lambda x: "HOMBRE" if x == "H" else ("MUJER" if x == "M" else "NO INFORMA"))
 
 # Pertenencia étnica
+cnmh["iden_pertenenciaetnica"] = cnmh["etnia"]
 homologacion.etnia.etnia_valida (cnmh, etnia = 'iden_pertenenciaetnica')
 # Fecha de nacimiento
 cnmh["fecha_nacimiento_original"] = pd.to_datetime(cnmh["fechanacimiento"])
@@ -459,10 +461,15 @@ cnmh_nnaci = cnmh_nnaci[cnmh_nnaci['_merge'] == 'left_only']
 cnmh_nnaci = cnmh_nnaci.drop(columns=['_merge'])
 
 # Calcula la edad
+cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len()<1), "0", cnmh['fecha_ocur_anio'])
+cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len()<1), "0", cnmh['anio_nacimiento'])
+
 cnmh["edad"] = np.where((cnmh["fecha_ocur_anio"].isna() | cnmh["anio_nacimiento"].isna()), np.nan,
                         cnmh["fecha_ocur_anio"].astype(float) - cnmh["anio_nacimiento"].astype(float))
+cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len()==1), "", cnmh['fecha_ocur_anio'])
+cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len()==1), "", cnmh['anio_nacimiento'])
 # Reemplaza edades mayores de 100 con NaN
-cnmh["edad"] = np.where(cnmh["edad"] > 100, np.nan, cnmh["edad"])
+cnmh["edad"] = np.where((cnmh["edad"] > 100) | (cnmh["edad"] < 0) , np.nan, cnmh["edad"])
 # Verifica que la edad esté dentro del rango [1, 100] o sea NaN
 cnmh_nedad = cnmh[(cnmh["edad"].between(1, 100, inclusive=True) == False | cnmh["edad"].isna())]
 

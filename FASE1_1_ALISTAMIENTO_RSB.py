@@ -4,7 +4,13 @@ import pandas as pd
 import json
 from text_column import aplicar_reglas_validacion
 import time
+import homologacion.limpieza
 
+def clean_text(text):
+    if text is None or text.isna().any():
+        text = text.astype(str)      
+    text = text.apply(homologacion.limpieza.normalize_text)
+    return text
 # Guarda el tiempo de inicio
 start_time = time.time()
 
@@ -22,9 +28,14 @@ DB_SCHEMA = "orq_salida"
 DB_TABLE = "RSB"
 
 # Cambiar de directorio
+archivo_a_borrar = os.path.join("fuentes secundarias",
+                                "V_UBPD_RSB.csv")
+
+    
 if DIRECTORY_PATH:
     os.chdir(DIRECTORY_PATH)  # Cambia al directorio deseado si DIRECTORY_PATH no está vacío
-    os.remove("fuentes secundarias/V_UBPD_RSB.csv")
+    if os.path.exists(archivo_a_borrar):
+        os.remove(archivo_a_borrar)
 
 # La codificación ISO-8859-1 no es necesaria en Python ya que usa Unicode por defecto
 
@@ -70,7 +81,7 @@ columns_to_sort = [
     "presunto_responsable", "descripcion_relato", "codigo_unico_fuente"
 ]
 df.columns = [col.replace(" ", "_") for col in df.columns]
-df.sort_values(columns_to_sort, inplace=True)
+df.sort_values(columns_to_sort, inplace=True)#quitar ordenamientos
 
 df.rename(columns={"fuente": "tabla_origen"}, inplace=True)
 
@@ -96,7 +107,9 @@ df.drop(columns=["tipo_de_otro_nombre", "otro_nombre", "iden_orientacionsexual",
 columns_to_clean = ["nombre_completo", "primer_nombre", "segundo_nombre", "primer_apellido", "segundo_apellido", "pais_de_ocurrencia", "presunto_responsable", "sexo", "tipo_de_hecho"]
 
 #2. Normalización de los campos de texto
-df = aplicar_reglas_validacion(df, columns_to_clean)
+df[columns_to_clean] = df[columns_to_clean].apply(clean_text)
+#df = aplicar_reglas_validacion(df, columns_to_clean)
+
 
 #3. Homologación de estructura, formato y contenido
 #Datos sobre los hechos	

@@ -1,23 +1,12 @@
-###################################################
-# Autor: Esneyder
-# Titulo: Homologacion de la fuente de información de la V_CNMH_SE
-# Fecha: 21/06/2023
-##
-#
-
-###################################################
-# Cambia el path base intentando leer desde los parametros de invocacion
-
 import sys
 import os
+
 import pandas as pd
 import hashlib
-from unidecode import unidecode
 import re
 from datetime import datetime
 from sqlalchemy import create_engine
 import numpy as np
-import time
 import yaml
 import homologacion.limpieza
 import homologacion.fecha
@@ -32,16 +21,14 @@ def clean_text(text):
         text = text.astype(str)      
     text = text.apply(homologacion.limpieza.normalize_text)
     return text
-
+# creacion de las funciones requeridas
 def funcion_hash(row):
     return hashlib.sha1(str(row).encode()).hexdigest()
 
-
 # Limpiar todas las variables
-# =============================================================================
 # for variable in list(locals()):
-#     del locals()[variable]
-# =============================================================================
+#    del locals()[variable]
+
 # Obtener los argumentos de la línea de comandos
 args = sys.argv
 if len(args) > 1:
@@ -62,7 +49,8 @@ ruta_base = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/Orquestad
 
 # Obtener la fecha y hora actual
 fecha_inicio = datetime.now()
-# 88
+# Establecimiento de la conexion a la base de datos
+# Listar los drivers ODBC instalados
 # Lectura del archivo DIVIPOLA
 dane = pd.read_stata("fuentes secundarias\\tablas complementarias\\DIVIPOLA_municipios_122021.dta")
 # Renombrar columnas
@@ -85,128 +73,135 @@ dane = pd.concat([dane, nuevas_filas], ignore_index=True)
 # Crear DataFrame 'dane_depts' con las columnas 'codigo_dane_departamento'
 # y 'departamento_ocurrencia' únicas
 dane_depts = dane[['codigo_dane_departamento', 'departamento_ocurrencia']].drop_duplicates()
+# 110
 # Configurar la conexión a la base de datos (asegúrate de proporcionar los detalles correctos)
 # db_url = "mssql+pyodbc://orquestacion.universo:Ubpd2022*@172.16.10.10/UNIVERSO_PDD?driver=ODBC+Driver+17+for+SQL+Server"
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)
+
 # Crear la consulta SQL
 n_sample_p = f"top({n_sample})" if n_sample != "" else ""
-query = "EXECUTE [dbo].[CONSULTA_V_CNMH_SE]"
+# #query = f"SELECT {n_sample_p} * FROM [dbo].[V_CNMH_RU] personas left join [dbo].[V_CNMH_RU_C] casos on casos.IdCaso = personas.IdCaso"
+query = "EXECUTE CONSULTA_V_CNMH_RU"
 # Ejecutar la consulta y cargar los datos en un DataFrame
-cnmh = pd.read_sql(query, engine)
+cnmh = pd.read_sql(query, con = engine)
 # Obtener el número de filas en el DataFrame cnmh
 nrow_cnmh = len(cnmh)
+print("Registros en la consulta tabla :",nrow_cnmh)
 # Obtener el número de casos y personas
-n_casos = pd.read_sql("select count(*) from [dbo].[V_CNMH_SE_C]", engine).iloc[0, 0]
-n_personas = pd.read_sql("select count(*) from [dbo].[V_CNMH_SE]", engine).iloc[0, 0]
+n_casos = pd.read_sql("select count(*) from [dbo].[V_CNMH_RU_C]", con = engine).iloc[0, 0]
+n_personas = pd.read_sql("select count(*) from [dbo].[V_CNMH_RU]", con = engine).iloc[0, 0]
 # Obtener el número de casos sin personas
-n_casos_sin_personas = pd.read_sql("select count(*) from [dbo].[V_CNMH_SE_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])", engine).iloc[0, 0]
+n_casos_sin_personas = pd.read_sql("select count(*) from [dbo].[V_CNMH_RU_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])", con = engine).iloc[0, 0]
 # Obtener los casos sin personas
-casos_sin_personas = pd.read_sql("select * from [dbo].[V_CNMH_SE_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_SE_C])", engine)
+casos_sin_personas = pd.read_sql("select * from [dbo].[V_CNMH_RU_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])", con = engine)
 # Obtener el número de personas sin casos
-n_personas_sin_casos = pd.read_sql("select count(*) from [dbo].[V_CNMH_SE] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_SE])", engine).iloc[0, 0]
+n_personas_sin_casos = pd.read_sql("select count(*) from [dbo].[V_CNMH_RU] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU_C])", con = engine).iloc[0, 0]
 # Limpieza de nombres de columnas (clean_names no es necesario en pandas)
 cnmh.columns = cnmh.columns.str.lower()
 # Creación del ID único para cada registro
 cnmh['id_registro'] = cnmh.apply(funcion_hash, axis=1)
-cnmh['tabla_origen'] = "CNMH_SE"
-
-# Lista de valores NA
+cnmh['tabla_origen'] = "CNMH_RU"
+# se reeplaza esta isntruccion y se usa desde la base de datos
+# con procedimiento almacenado
+# cnmh['codigo_unico_fuente'] = cnmh['id_caso'] + "_" + cnmh['identificador_caso'] + "_" + cnmh['id']
+##con.close()
+# 147
+# Valores NA
 na_values = {
     "SIN INFORMACION": np.nan,
     "ND": np.nan,
-    "AI": np.nan,
-    'NONE': None,
+    "AI": np.nan
 }
-# Lista de columnas que serán limpiadas
-variables_limpieza = [
-    "estado", "zon_id_lugar_del_hecho", "municipio_caso", "depto_caso", "nacionalidad",
-    "tipo_documento", "nombres_apellidos", "sobre_nombre_alias", "sexo",
-    "orientacion_sexual", "descripcion_edad", "etnia", "descripcion_etnia",
-    "discapacidad", "ocupacion_victima", "descripcion_otra_ocupacion_victima",
-    "calidad_victima", "cargo_rango_funcionario_publico", "cargo_empleado_sector_privado",
-    "tipo_poblacion_vulnerable", "descripcion_otro_tipo_poblacion_vulnerable",
-    "organizacion_civil", "militante_politico", "descripcion_otro_militante_politico",
-    "situacion_actual_victima", "observaciones_situacion_actual_de_la_victima",
-    "circustancia_muerte_en_cautiverio",
-    "descripcion_otra_circustancia_muerte_en_cautiverio", "tipo_liberacion",
-    "descripcion_otro_tipo_liberacion", "dias_cautiverio", "no_veces_secuestrado",
-    "hechos_simultaneos_durante_periodo", "otro_hecho_simultaneos_durante_periodo",
-    "grupo", "descripcion_grupo", "espeficicacion_presunto_responsable",
-    "observaciones_grupo_armado1", "rango_fuerzas_armadas",
-    "descripcion_rango_fuerzas_armadas_estatales", "rango_grupo_armado",
-    "descripcion_rango_grupo_armado", "zon_id_lugar_del_hecho_2",
-    "municipio_caso_2", "depto_caso_2", "region", "cabecera_municipal", "comuna",
-    "barrio", "area_rural", "corregimiento", "vereda", "codigo_centro_poblado",
-    "centro_poblado", "tipo_centro_poblado", "sitio",
-    "territorio_colectivo", "resguardo", "modalidad", "descripcion_de_la_modalidad",
-    "modalidad_de_secuestro", "tipo_secuestro", "finalidad_del_secuestro",
-    "descripcion_otra_finalidad", "exigencia_para_la_liberacion",
-    "descripcion_otra_exigencia", "porte_listas", "ingreso_vivienda_finca",
-    "encapuchados", "perpetrador_identificado", "presunto_reponsable",
-    "descripcion_presunto_responsable1", "espeficicacion_presunto_responsable_2",
-    "observaciones_presunto_responsable", "abandono_despojo_forzado_tierras",
-    "amenaza_intimidacion", "ataque_contra_mision_medica",
-    "confinamiento_restriccion_movilidad", "desplazamiento_forzado", "extorsion",
-    "lesionados_civiles", "pillaje", "tortura", "violencia_basada_genero",
-    "otro_hecho_simultaneo", "total_civiles", "total_combatientes",
-    "total_civiles_combatientes", "grafitis_letreros", "vinculos_familiares",
-    "mujeres_embarazadas", "descripcion_del_caso", "usuario", "estado_2",
-    "tipo_caso", "caso_maestro"
-]
+# Lista de variables a limpiar
+variables_limpieza = ["zon_id_lugar_del_hecho", "muninicio_caso", "depto_caso", "nacionalidad",
+                      "tipo_documento", "nombres_apellidos", "sobre_nombre_alias", "sexo",
+                      "orientacion_sexual", "descripcion_edad", "etnia", "descripcion_etnia",
+                      "discapacidad", "ocupacion_victima", "descripcion_otra_ocupacion_victima",
+                      "calidad_victima", "tipo_poblacion_vulnerable", "descripcion_otro_tipo_poblacion_vulnerable",
+                      "militante_politico", "descripcion_otro_militante_politico", "caletero", "camp",
+                      "coci", "coman", "comba", "conta", "entre", "esco", "ogaoextor", "fab_arm", "minas",
+                      "guar", "inform", "patru", "radio", "rasp", "ser_salud", "sica", "tra_org", "tra_dro",
+                      "tra_armas", "sin_ofi", "otro_ofi", "hechos_simultaneos_durante_cautiverio", "des_h_sim_per",
+                      "tipo_salida", "des_sal", "motivo_salida", "annofh", "grupo", "descripcion_grupo",
+                      "espeficicacion_presunto_responsable", "observaciones_grupo_armado1", "rango_fuerzas_armadas",
+                      "descripcion_rango_fuerzas_armadas_estatales", "rango_grupo_armado",
+                      "descripcion_rango_grupo_armado", "mun_finali", "depto_finali", "grupo_salida",
+                      "descripcion_grupo_salida", "espeficicacion_presunto_responsable1",
+                      "observaciones_grupo_armado11", "num_vecre", "zon_id_lugar_del_hecho_2",
+                      "muninicio_caso_2", "depto_caso_2", "region", "cabecera_municipal", "comuna", "barrio",
+                      "area_rural", "corregimiento", "vereda", "codigo_centro_poblado", "centro_poblado",
+                      "tipo_centro_poblado", "sitio", "territorio_colectivo", "resguardo", "modalidad",
+                      "modalidad_descripcion", "forma_vinculacion", "tipo_vinculacion", "porte_listas",
+                      "ingreso_vivienda_finca", "encapuchados", "perpetrador_identificado", "ingreso_escuela",
+                      "presunto_reponsable", "descripcion_presunto_responsable1",
+                      "espeficicacion_presunto_responsable_2", "observaciones_presunto_responsable1",
+                      "numero_combatientes_grupo_armado1", "descripcion_combatientes_grupo_armado1",
+                      "armas_grupo_armado1", "descripcion_tipo_armas_grupo_armado1",
+                      "abandono_despojo_forzado_tierras", "amenaza_intimidacion", "ataque_contra_mision_medica",
+                      "confinamiento_restriccion_movilidad", "desplazamiento_forzado", "extorsion",
+                      "lesionados_civiles", "pillaje", "tortura", "violencia_basada_genero",
+                      "otro_hecho_simultaneo", "grafitis_letreros", "vinculos_familiares", "mujeres_embarazadas",
+                      "descripcion_del_caso", "usuario", "estado_2", "identificador_caso_2", "tipo_caso",
+                      "caso_maestro", "numero_victimas_caso"]
 
+# Aplicar la función de limpieza a las variables
+#cnmh[variables_limpieza] = cnmh[variables_limpieza].apply(
+#    lambda x: x.str.strip().str.upper())
+#cnmh[variables_limpieza] = cnmh[variables_limpieza].apply(lambda x: clean_func(x, na_values))
+#cnmh[variables_limpieza] = cnmh[variables_limpieza].replace(na_values)
 
-# Limpieza y manipulación de datos
 cnmh[variables_limpieza] = cnmh[variables_limpieza].apply(clean_text)
 cnmh[variables_limpieza] = cnmh[variables_limpieza].replace(na_values)
+nrow_cnmh = len(cnmh)
+print("Registros despues de la limpieza :",nrow_cnmh)
+
 # homologación de estructura, formato y contenido
 # Datos sobre los hechos
 # lugar de ocurrencia
-# Definir las variables de limpieza DANE
+# Definir variables_limpieza_dane
 variables_limpieza_dane = ["departamento_ocurrencia", "municipio_ocurrencia"]
-# Limpieza y manipulación de datos en 'dane'
+
+# Limpieza y normalización de las columnas de dane
 dane[variables_limpieza_dane] = dane[variables_limpieza_dane].apply(clean_text)
 dane[variables_limpieza_dane] = dane[variables_limpieza_dane].replace(na_values)
+dane["codigo_dane_departamento"] = dane["codigo_dane_departamento"].str.strip()
 
-# Obtener valores únicos del departamento en 'dane'
-unique_departamentos = dane['codigo_dane_departamento'].unique()
-# Realizar la manipulación de 'cnmh'
-cnmh['pais_ocurrencia'] = np.where(cnmh['depto_caso'] == 'EXTERIOR', np.nan, 'COLOMBIA')
-# Mapear valores en 'depto_caso' y 'municipio_caso'
-mapeo_deptos_mun = {
-    'SIN INFORMACION': np.nan,
-    '': np.nan,
-    'EXTERIOR': np.nan,
-    'CUCUTA': 'SAN JOSE DE CUCUTA',
-    'ARMERO GUAYABAL': 'ARMERO',
-    'TOLU VIEJO': 'SAN JOSE DE TOLUVIEJO',
-    'CUASPUD': 'CUASPUD CARLOSAMA',
-    'BARRANCO MINAS': 'BARRANCOMINAS',
-    'MOMPOS': 'SANTA CRUZ DE MOMPOX',
-    'BELEN DE BAJIRA': 'RIOSUCIO',
-    'PIENDAMO': 'PIENDAMO TUNIA',
-    'SOTARA': 'SOTARA PAISPAMBA',
-    'FRONTERA VENEZUELA': np.nan,
-    'FRONTERA PANAMA': np.nan,
-    'FRONTERA BRASIL': np.nan,
-    'GUICAN': 'GUICAN DE LA SIERRA',
-    'FRONTERA': np.nan,
-    'FRONTERA ECUADOR': np.nan,
-    'YACARATE': 'YAVARATE',
-    'PAPUNAUA': 'PAPUNAHUA'
+# Crear un DataFrame con las equivalencias para el departamento
+equivalencias_departamento = {
+    "SIN INFORMACION": np.nan,
+    "EXTERIOR": np.nan,
+    "CUCUTA": "SAN JOSE DE CUCUTA",
+    "ARMERO GUAYABAL": "ARMERO",
+    "TOLU VIEJO": "SAN JOSE DE TOLUVIEJO",
+    "CUASPUD": "CUASPUD CARLOSAMA",
+    "BARRANCO MINAS": "BARRANCOMINAS",
+    "MOMPOS": "SANTA CRUZ DE MOMPOX",
+    "BELEN DE BAJIRA": "RIOSUCIO",
+    "PIENDAMO": "PIENDAMO TUNIA",
+    "SOTARA": "SOTARA PAISPAMBA",
+    "FRONTERA VENEZUELA": np.nan,
+    "FRONTERA PANAMA": np.nan,
+    "FRONTERA BRASIL": np.nan,
+    "GUICAN": "GUICAN DE LA SIERRA",
+    "FRONTERA": np.nan,
+    "FRONTERA ECUADOR": np.nan,
+    "YACARATE": "YAVARATE",
+    "PAPUNAUA": "PAPUNAHUA"
 }
-
-cnmh["depto_caso"] = cnmh["depto_caso"].replace(mapeo_deptos_mun)
-cnmh["municipio_caso"] = cnmh["municipio_caso"].replace(mapeo_deptos_mun)
-
-# Verificar valores en 'depto_caso' y 'municipio_caso' contra 'dane'
-# #cnmh = cnmh[cnmh['depto_caso'].isin(unique_departamentos) & cnmh['municipio_caso'].isin(dane['municipio_ocurrencia'])]
-# Realizar la unión (left join) con 'dane' por departamento y municipio
+# Limpieza y normalización de las columnas en cnmh
+cnmh["pais_ocurrencia"] = np.where(cnmh["depto_caso"] == "EXTERIOR", np.nan, "COLOMBIA")
+cnmh.rename(columns={'muninicio_caso': 'municipio_caso'}, inplace=True)
+cnmh[["depto_caso", "municipio_caso"]] = cnmh[["depto_caso", "municipio_caso"]].apply(lambda x: x.str.strip().str.upper())
+cnmh["depto_caso"] = cnmh["depto_caso"].replace(equivalencias_departamento)
+nrow_cnmh = len(cnmh)
+print("Registros despues de la limpieza dane :",nrow_cnmh)
+# Realizar la unión (left join) con "dane"
 cnmh = pd.merge(cnmh, dane, how='left', left_on=['depto_caso', 'municipio_caso'],
                 right_on=['departamento_ocurrencia', 'municipio_ocurrencia'])
 nrow_cnmh = len(cnmh)
 print("Registros despues left dane depto muni:",nrow_cnmh)
-cnmh_ndp = cnmh[cnmh["municipio_ocurrencia"].isna()]
+cnmh_ndp = cnmh[cnmh["departamento_ocurrencia"].isna()]
 # fecha de ocurrencia 
 cnmh['annoh'] = pd.to_numeric(cnmh['annoh'], errors='coerce')
 cnmh['mesh'] = pd.to_numeric(cnmh['mesh'], errors='coerce')
@@ -216,97 +211,134 @@ homologacion.fecha.fechas_validas (cnmh,fecha_dia = 'diah',
                                    fecha_anio = 'annoh',
                                    fecha = 'fecha_desaparicion_dtf',
                                    fechat= 'fecha_desaparicion')
-# Definir meses y días válidos
 cnmh['fecha_ocur_anio'] = cnmh['annoh']
 cnmh['fecha_ocur_mes'] = cnmh['mesh']
 cnmh['fecha_ocur_dia'] = cnmh['diah']
-# Limpieza de fechas
-# Verificación de fechas
+# Asegurarse de que las columnas "mesh," "diah," y "annoh" sean de tipo str
+cnmh["mesh"] = cnmh["mesh"].astype(str)
+cnmh["diah"] = cnmh["diah"].astype(str)
+cnmh["annoh"] = cnmh["annoh"].astype(str)
+# Validaciones
 meses = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
 dias = ["01", "02", "03", "04", "05", "06", "07", "08", "09"] + list(map(str, range(10, 32)))
+
 cnmh_ocur = cnmh[cnmh["fecha_ocur_anio"].astype(str).isin(map(str, range(1900, 2023))) &
     cnmh["fecha_ocur_mes"].astype(str).isin(meses) &
     cnmh["fecha_ocur_dia"].astype(str).isin(dias) ]
+
+
 cnmh_nocur = cnmh.merge(cnmh_ocur, on=['id_registro'], how='left', indicator=True)
 cnmh_nocur = cnmh_nocur[cnmh_nocur['_merge'] == 'left_only']
 cnmh_nocur = cnmh_nocur.drop(columns=['_merge'])
 #presuntos responsables
-# Lista de valores a considerar como "sin información" para espeficicacion_presunto_responsable
-sin_informacion_actores = ['NO DEFINIDO', '', 'NO IDENTIFICA', 'SIN INFORMACIÓN CONFLICTO ARMADO',
-                           'NO IDENTIFICA CONFLICTO ARMADO', 'OTROS VIOLENCIA GENERALIZADA',
-                           'SIN INFORMACIÓN', 'NO IDENTIFICA RELACIÓN CERCANA Y SUFICIENTE',
-                           'NO IDENTIFICA VIOLENCIA GENERALIZADA',
-                           'NO IDENTIFICA RELACIÓN CERCANA Y SUFICIENTE ',
-                           'SIN INFORMACIÓN RELACIÓN CERCANA Y SUFICIENTE',
-                           'NO IDENTIFICA CONFLICTO ARMADO', 'CONFLICTO ARMADO',
-                           '0', 'SIN INFORMACIÓN VIOLENCIA GENERALIZADA', '', "NO IDENTIFICADO",
-                           'DESCONOCIDO']
-# Realizar transformaciones y limpieza
-cnmh['espeficicacion_presunto_responsable'] = np.where(cnmh['espeficicacion_presunto_responsable'].isin(sin_informacion_actores), np.nan, cnmh['espeficicacion_presunto_responsable'])
-# Lista de columnas relacionadas con los presuntos responsables
-responsables = ["perpetrador_identificado", "presunto_reponsable",
-                "descripcion_presunto_responsable1", "espeficicacion_presunto_responsable_2",
-                "observaciones_presunto_responsable1"]
-# Crear columnas para cada tipo de presunto responsable y asignar valores 0 o 1
-cnmh['pres_resp_agentes_estatales'] = np.where((cnmh['grupo'].str.contains("FUERZA PÚBLICA|AGENTE DEL ESTADO|GENTE EXTRANJERO", flags=re.IGNORECASE)) | (cnmh['presunto_reponsable'].str.contains("AGENTE DEL ESTADO", flags=re.IGNORECASE)), 1, 0)
-cnmh['pres_resp_grupos_posdesmov'] = np.where((cnmh['grupo'].str.contains("POSDESMOVILIZACION", flags=re.IGNORECASE)) | (cnmh['presunto_reponsable'].str.contains("POSDESMOVILIZACION", flags=re.IGNORECASE)), 1, 0)
-cnmh['pres_resp_paramilitares'] = np.where((cnmh['grupo'].str.contains("AUTODEF|PARAMI|AUC|A.U.C|PARAMILITAR", flags=re.IGNORECASE)) | (cnmh['presunto_reponsable'].str.contains("PARAMILITAR", flags=re.IGNORECASE)), 1, 0)
-cnmh['pres_resp_guerr_eln'] = np.where((cnmh['grupo'].str.contains("ELN|GUERRILLA", flags=re.IGNORECASE)) & (cnmh['descripcion_grupo'].str.contains("ELN", flags=re.IGNORECASE)), 1, 0)
-cnmh['pres_resp_guerr_farc'] = np.where((cnmh['grupo'].str.contains("FARC|GUERRILLA", flags=re.IGNORECASE)) & (cnmh['descripcion_grupo'].str.contains("FARC", flags=re.IGNORECASE)), 1, 0)
-cnmh['pres_resp_guerr_otra'] = np.where((cnmh['grupo'].str.contains("GRUPOS GUERRILLEROS", flags=re.IGNORECASE) & ~(cnmh['grupo'].str.contains("FARC|ELN", flags=re.IGNORECASE))) |
-                                        (cnmh['grupo'].str.contains("GUERRILLA", flags=re.IGNORECASE) & ~(cnmh['grupo'].str.contains("FARC|ELN", flags=re.IGNORECASE))) |
-                                        (cnmh['grupo'].str.contains("GUERRILLA", flags=re.IGNORECASE) & ~(cnmh['descripcion_grupo'].str.contains("FARC|ELN", flags=re.IGNORECASE))) |
-                                        (cnmh['grupo'].str.contains("GUERRILLA", flags=re.IGNORECASE) & (cnmh['descripcion_grupo'].str.contains("EPL", flags=re.IGNORECASE))) |
-                                        (cnmh['grupo'].str.contains("EPL", flags=re.IGNORECASE)) |
-                                        (cnmh['presunto_reponsable'].str.contains("GUERRILLA", flags=re.IGNORECASE)), 1, 0)
-cnmh['tmp'] = cnmh[['pres_resp_agentes_estatales', 'pres_resp_grupos_posdesmov', 'pres_resp_paramilitares',
-                    'pres_resp_guerr_eln', 'pres_resp_guerr_farc', 'pres_resp_guerr_otra']].sum(axis=1)
-# Calcular columna 'pres_resp_otro' basada en la suma de las columnas anteriores
+sin_informacion_actores = {
+    "NO DEFINIDO": np.nan,
+    'NO IDENTIFICA': np.nan,
+    'SIN INFORMACIÓN  CONFLICTO ARMADO': np.nan,
+    'NO IDENTIFICA  CONFLICTO ARMADO': np.nan,
+    'OTROS  VIOLENCIA GENERALIZADA': np.nan,
+    'SIN INFORMACIÓN ': np.nan,
+    'NO IDENTIFICA  RELACIÓN CERCANA Y SUFICIENTE': np.nan,
+    'NO IDENTIFICA  VIOLENCIA GENERALIZADA': np.nan,
+    'NO IDENTIFICA  RELACIÓN CERCANA Y SUFICIENTE ': np.nan,
+    'SIN INFORMACIÓN  RELACIÓN CERCANA Y SUFICIENTE': np.nan,
+    'NO IDENTIFICA  CONFLICTO ARMADO ': np.nan,
+    'CONFLICTO ARMADO': np.nan,
+    '0': np.nan,
+    'SIN INFORMACIÓN  VIOLENCIA GENERALIZADA': np.nan,
+    "NO IDENTIFICADO": np.nan
+}
+# Reemplazar valores en la columna 'espeficicacion_presunto_responsable'
+cnmh['espeficicacion_presunto_responsable'] = cnmh['espeficicacion_presunto_responsable'].replace(sin_informacion_actores)
+
+# Crear nuevas columnas para categorizar responsables
+cnmh['pres_resp_agentes_estatales'] = np.where(
+    (cnmh['grupo'].str.contains("FUERZA PÚBLICA") |
+     cnmh['grupo'].str.contains("AGENTE DEL ESTADO") |
+     cnmh['grupo'].str.contains("GENTE EXTRANJERO") |
+     cnmh['presunto_reponsable'].str.contains("AGENTE DEL ESTADO")), 1, 0
+)
+
+cnmh['pres_resp_grupos_posdesmov'] = np.where(
+    (cnmh['grupo'].str.contains("POSDESMOVILIZACION") |
+     cnmh['presunto_reponsable'].str.contains("POSDESMOVILIZACION")), 1, 0
+)
+
+cnmh['pres_resp_paramilitares'] = np.where(
+    (cnmh['grupo'].str.contains("AUTODEF") |
+     cnmh['grupo'].str.contains("PARAMI") |
+     cnmh['grupo'].str.contains("AUC") |
+     cnmh['grupo'].str.contains("A.U.C") |
+     cnmh['grupo'].str.contains("PARAMILITAR") |
+     cnmh['presunto_reponsable'].str.contains("PARAMILITAR")), 1, 0
+)
+
+cnmh['pres_resp_guerr_eln'] = np.where(
+    (cnmh['grupo'].str.contains("ELN") |
+     (cnmh['grupo'].str.contains("GUERRILLA") &
+      cnmh['descripcion_grupo'].str.contains("ELN"))), 1, 0
+)
+
+cnmh['pres_resp_guerr_farc'] = np.where(
+    (cnmh['grupo'].str.contains("FARC") |
+     (cnmh['grupo'].str.contains("GUERRILLA") &
+      cnmh['descripcion_grupo'].str.contains("FARC"))), 1, 0
+)
+
+cnmh['pres_resp_guerr_otra'] = np.where(
+    ((cnmh['grupo'].str.contains("GRUPOS GUERRILLEROS") &
+      ~cnmh['grupo'].str.contains("FARC") &
+      ~cnmh['grupo'].str.contains("ELN")) |
+     (cnmh['grupo'].str.contains("GUERRILLA") &
+      ~cnmh['descripcion_grupo'].str.contains("FARC") &
+      ~cnmh['descripcion_grupo'].str.contains("ELN")) |
+     (cnmh['grupo'].str.contains("EPL") |
+      (cnmh['grupo'].str.contains("GUERRILLA") &
+       cnmh['descripcion_grupo'].str.contains("EPL"))) |
+     cnmh['presunto_reponsable'].str.contains("GUERRILLA")), 1, 0
+)
+
+cnmh['tmp'] =  cnmh['pres_resp_guerr_otra'] + cnmh['pres_resp_guerr_farc'] + cnmh['pres_resp_guerr_eln'] + cnmh['pres_resp_paramilitares'] + cnmh['pres_resp_grupos_posdesmov'] + cnmh['pres_resp_agentes_estatales'] 
+
 cnmh['pres_resp_otro'] = np.where(
-    (cnmh['tmp'] > 0)  |
-    (cnmh['grupo'].str.contains("GRUPO ARMADO NO IDENTIFICADO", flags=re.IGNORECASE))  |
-    (cnmh['presunto_reponsable'].str.contains("GRUPO ARMADO NO", flags=re.IGNORECASE))  |
-    (cnmh['presunto_reponsable'].str.contains("BANDOLERISMO", flags=re.IGNORECASE))  |
-    (cnmh['presunto_reponsable'].str.contains("AGENTE EXTRANJERO", flags=re.IGNORECASE))  |
-    (cnmh['presunto_reponsable'].str.contains("CRIMEN ORGANIZADO", flags=re.IGNORECASE))  |
-    (cnmh['presunto_reponsable'].str.contains("OTRO CUAL", flags=re.IGNORECASE)) , 1, 0)
-# Mostrar la suma de presuntos responsables en cada categoría
-sum_pres_resp = cnmh[['pres_resp_agentes_estatales', 'pres_resp_grupos_posdesmov', 'pres_resp_paramilitares',
-                      'pres_resp_guerr_eln', 'pres_resp_guerr_farc', 'pres_resp_guerr_otra', 'pres_resp_otro']].sum()
+    (cnmh['tmp'] > 0 |
+     cnmh['grupo'].str.contains("GRUPO ARMADO NO IDENTIFICADO") |
+     cnmh['presunto_reponsable'].str.contains("GRUPO ARMADO NO") |
+     cnmh['presunto_reponsable'].str.contains("BANDOLERISMO")), 1, 0
+)
+
+cnmh = cnmh.drop(columns=['tmp'])
+
+# Resumen de las columnas de responsables
+pres_resp_columns = cnmh.filter(like='pres_resp_')
+pres_resp_summary = pres_resp_columns.sum()
+
 # tipo de hecho
-# Lista de otros hechos
-otros_hechos = ["OCULTAMIENTO DE CADAVER", "OCULTAMIENTO DEL CADAVER", "VENTA DEL SECUESTRADO"]
-# Realizar transformaciones y cálculos
-cnmh['TH_DF'] = np.where(cnmh['otro_hecho_simultaneo'].str.contains("DESAPARICION FORZADA", flags=re.IGNORECASE), 1, 0)
-cnmh['TH_SE'] = 1  # Columna TH_SE siempre se establece en 1
-cnmh['TH_RU'] = np.where(cnmh['otro_hecho_simultaneo'].str.contains("DESMOVILIZADO", flags=re.IGNORECASE), 1, 0)
+otros_hechos = ["OCULTAMIENTO DE CADAVER"]
+
+cnmh['TH_DF'] = np.where(cnmh['otro_hecho_simultaneo'].str.contains("COMBATIENTE DADO POR DESAPARECIDO"), 1, 0)
+cnmh['TH_SE'] = np.where(cnmh['otro_hecho_simultaneo'].str.contains("INTENTO DE ESCAPE"), 1, 0)
+cnmh['TH_RU'] = 1
 cnmh['TH_OTRO'] = np.where(cnmh['otro_hecho_simultaneo'].isin(otros_hechos), 1, 0)
-# Mostrar la tabla de frecuencias de las columnas TH_DF, TH_SE, TH_RU, TH_OTRO
-table_TH_DF = cnmh['TH_DF'].value_counts()
-table_TH_SE = cnmh['TH_SE'].value_counts()
-table_TH_RU = cnmh['TH_RU'].value_counts()
-table_TH_OTRO = cnmh['TH_OTRO'].value_counts()
-#relato 
-# Limpiar la descripción del caso
+
+# Contar los valores en las nuevas columnas
+count_TH_DF = cnmh['TH_DF'].value_counts()
+count_TH_SE = cnmh['TH_SE'].value_counts()
+count_TH_RU = cnmh['TH_RU'].value_counts()
+count_TH_OTRO = cnmh['TH_OTRO'].value_counts()
+
+# relato
+# Limpia la descripción del relato
 cnmh['descripcion_relato'] = cnmh['descripcion_del_caso'].str.strip()
-# Mapear la situación actual de la víctima
-cnmh['situacion_actual_des'] = cnmh['situacion_actual_victima'].replace({
-    "APARECIO MUERTO": "Apareció Muerto",
-    "SIGUE DESAPAR": "Continúa desaparecido",
-    "VIVA": "Apareció Vivo",
-    "MUERTA": "Apareció Muerto",
-    "DESCONOCIDA": None,
-    "APARECIO VIVO": "Apareció Vivo",
-    "DESAPARECIDO FORZADO": "Continúa desaparecido"
-})
+# Crea una nueva columna "situacion_actual_des" con valores NA
+cnmh['situacion_actual_des'] = None
 
 # Datos sobre las personas dadas por desaparecidas
 # nombres y apellidos
-# Limpiar y procesar el nombre completo
-cnmh['nombre_completo'] = cnmh['nombres_apellidos'].str.strip()
-cnmh['nombre_completo'] = np.where(cnmh['nombre_completo'] == "PERSONA SIN IDENTIFICAR", None, cnmh['nombre_completo'])
-cnmh['nombre_completo'] = cnmh['nombre_completo'].str.replace(" NA ", "", regex=True)
-
+cnmh['nombre_completo'] = cnmh['nombres_apellidos'].str.strip()  # Elimina espacios en blanco al principio y al final de la cadena
+cnmh['nombre_completo'] = cnmh['nombre_completo'].replace('PERSONA SIN IDENTIFICAR', pd.NA)  # Reemplaza 'PERSONA SIN IDENTIFICAR' con NaN
+cnmh['nombre_completo'] = cnmh['nombre_completo'].str.replace(r'\bNA\b', '', regex=True)  # Elimina la palabra 'NA' entre espacios en blanco
+cnmh['nombre_completo'] = cnmh['nombre_completo'].fillna("")
 # Aplica la función a la columna "nombre_completo"
 cnmh[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']] = cnmh['nombre_completo'].apply(lambda x: pd.Series(homologacion.nombre_completo.limpiar_nombre_completo(x)))
 
@@ -315,80 +347,95 @@ homologacion.nombres.nombres_validos (cnmh , primer_nombre = 'primer_nombre',
                  primer_apellido = 'primer_apellido',
                  segundo_apellido = 'segundo_apellido',
                  nombre_completo = 'nombre_completo')
-
-# Aplicar la función para limpiar tipo_documento
-cnmh['tipo_documento'] = cnmh['tipo_documento'].str.strip().str.upper()
+# Eliminar espacios en blanco al principio y al final de la columna tipo_documento
+cnmh['tipo_documento'] = cnmh['tipo_documento'].str.strip()
+# Modificar las columnas segundo_nombre, primer_apellido y segundo_apellido
 
 # Documento
-cnmh['documento'] = cnmh['numero_documento'].str.strip().str.upper()
+# Eliminar espacios en blanco al principio y al final de la columna numero_documento
+cnmh['documento'] = cnmh['numerodocumento'].str.strip()
 homologacion.documento.documento_valida (cnmh, documento = 'documento')
+# Eliminar símbolos y caracteres especiales
+# Crear una columna auxiliar para indicar si el documento solo contiene caracteres de texto
+cnmh['documento_solo_cadena_texto'] = np.where(cnmh['documento'].str.isnumeric() == False, 1, 0)
+# Aplicar las reglas de validación de la Registraduría
+cnmh['documento'] = np.where((cnmh['documento'].str.isnumeric() == False) , np.nan, cnmh['documento'])
 
-cnmh['documento_solo_cadena_texto'] = np.where(cnmh['documento'].str.contains(r'[0-9]') == False, 0, 1)
-# Convertir documento a NA si no contiene números o es igual a '0'
-cnmh['documento'] = np.where((cnmh['documento'].str.contains(r'[0-9]') == False) | (cnmh['documento'] == '0'), None, cnmh['documento'])
-# implementacion de las reglas de la registraduria
-# Crear columnas con las condiciones especificadas
+cnmh['documento_CC_TI_no_numerico'] = np.where(
+    (cnmh['documento'].str.isalpha()) &
+    (cnmh['tipo_documento'].isin(['TARJETA DE IDENTIDAD',
+                                  'CEDULA DE CIUDADANIA'])), 1, 0)
 
-cnmh['documento_CC_TI_no_numerico'] = np.where(cnmh['documento'].str.contains(r'[A-Z]') & (cnmh['tipo_documento'].isin(["TARJETA DE IDENTIDAD", "CEDULA DE CIUDADANIA"])), 1, 0)
-cnmh['documento'] = np.where(cnmh['documento'].str.contains(r'[A-Z]') & (cnmh['tipo_documento'].isin(["TARJETA DE IDENTIDAD", "CEDULA DE CIUDADANIA"])), None, cnmh['documento'])
-cnmh['documento_CC_TI_mayor1KM'] = np.where((cnmh['documento'].str.len() >= 10) & (cnmh['documento'].astype(float) <= 1000000000) & (cnmh['tipo_documento'].isin(["TARJETA DE IDENTIDAD", "CEDULA DE CIUDADANIA"])), 1, 0)
-cnmh['documento_TI_10_11_caract'] = np.where(~((cnmh['documento'].str.len() == 10) | (cnmh['documento'].str.len() == 11)) & (cnmh['tipo_documento'] == "TARJETA DE IDENTIDAD"), 1, 0)
-cnmh['fecha_nacimiento'] =  pd.to_datetime(cnmh['fecha_nacimiento'], format='%Y-%m-%d', errors='coerce')
-cnmh['documento_TI_11_caract_fecha_nac'] = np.where(~((cnmh['documento'].str.slice(0, 6) == cnmh['fecha_nacimiento'].dt.strftime('%y%m%d')) & (cnmh['documento'].str.len() == 11) & (cnmh['tipo_documento'] == "TARJETA DE IDENTIDAD")), 1, 0)
+cnmh['documento'] = np.where(
+    (cnmh['documento'].str.isalpha()) &
+    (cnmh['tipo_documento'].isin(['TARJETA DE IDENTIDAD', 'CEDULA DE CIUDADANIA'])), np.nan, cnmh['documento'])
 
-cnmh['documento_CC_hombre_consistente'] = np.where(~(cnmh['documento'].astype(float).isin(range(1, 20000000)) | cnmh['documento'].astype(float).isin(range(70000000, 100000000))) & (cnmh['documento'].str.len().isin(range(4, 9))) & (cnmh['tipo_documento'] == "CEDULA DE CIUDADANIA") & (cnmh['sexo'] == "H"), 1, 0)
+cnmh['documento_CC_TI_mayor1KM'] = np.where(
+    (cnmh['documento'].str.len() >= 10) &
+    (cnmh['documento'].str.isnumeric()) &
+    (cnmh['documento'].astype(float) <= 1000000000) &
+    (cnmh['tipo_documento'].isin(['TARJETA DE IDENTIDAD', 'CEDULA DE CIUDADANIA'])), 1, 0)
 
-cnmh['documento_CC_mujer_consistente'] = np.where(~(cnmh['documento'].astype(float).isin(range(20000000, 70000000))) & (cnmh['documento'].str.len() == 8) & (cnmh['tipo_documento'] == "CEDULA DE CIUDADANIA") & (cnmh['sexo'] == "M"), 1, 0)
-cnmh['documento_CC_mujer_consistente2'] = np.where(~(cnmh['documento'].str.len().isin([8, 10])) & (cnmh['tipo_documento'] == "CEDULA DE CIUDADANIA") & (cnmh['sexo'] == "M"), 1, 0)
-cnmh['documento_CC_hombre_consistente2'] = np.where(~(cnmh['documento'].str.len().isin([4, 5, 6, 7, 8, 10])) & (cnmh['tipo_documento'] == "CEDULA DE CIUDADANIA") & (cnmh['sexo'] == "H"), 1, 0)
+cnmh['documento_TI_10_11_caract'] = np.where(
+    (~cnmh['documento'].str.len().isin([10, 11])) &
+    (cnmh['tipo_documento'] == 'TARJETA DE IDENTIDAD'), 1, 0)
 
-cnmh['documento'].fillna('0', inplace=True)
-cnmh['documento'] = cnmh['documento'].str.replace(r'\D', '0', regex=True)
-cnmh['documento'] = pd.to_numeric(cnmh['documento'], errors='coerce')
+cnmh['documento_TI_11_caract_fecha_nac'] = np.where(
+    (cnmh['documento'].str.len() == 11) &
+    (~cnmh['documento'].str[:6].eq(cnmh['fechanacimiento'].dt.strftime('%y%m%d'))) &
+    (cnmh['tipo_documento'] == 'TARJETA DE IDENTIDAD'), 1, 0)
 
-ti_mujer_consistente = ["1", "3", "5", "7", "9"]
+cnmh['documento_CC_hombre_consistente'] = np.where(
+    (~cnmh['documento'].astype(float).isin(range(1, 20000000))) &
+    (~cnmh['documento'].astype(float).isin(range(70000000, 100000000))) &
+    (cnmh['documento'].str.len().isin(range(4, 9))) &
+    (cnmh['tipo_documento'] == 'CEDULA DE CIUDADANIA') &
+    (cnmh['sexo'] == 'H'), 1, 0)
+
+cnmh['documento_CC_mujer_consistente'] = np.where(
+    (~cnmh['documento'].astype(float).isin(range(20000000, 70000000))) &
+    (cnmh['documento'].str.len() == 8) &
+    (cnmh['tipo_documento'] == 'CEDULA DE CIUDADANIA') &
+    (cnmh['sexo'] == 'M'), 1, 0)
+
+cnmh['documento_CC_mujer_consistente2'] = np.where(
+    (~cnmh['documento'].str.len().isin([8, 10])) &
+    (cnmh['tipo_documento'] == 'CEDULA DE CIUDADANIA') &
+    (cnmh['sexo'] == 'M'), 1, 0)
+
+cnmh['documento_CC_hombre_consistente2'] = np.where(
+    (~cnmh['documento'].str.len().isin([4, 5, 6, 7, 8, 10])) &
+    (cnmh['tipo_documento'] == 'CEDULA DE CIUDADANIA') &
+    (cnmh['sexo'] == 'H'), 1, 0)
+
 cnmh['documento_TI_mujer_consistente'] = np.where(
-    (cnmh['documento'].notna()) &  # Excluye los valores NaN
-    (~cnmh['documento'].astype(str).str[9:10].isin(ti_mujer_consistente)) & 
-    (cnmh['documento'].astype(str).str.len() == 11) & 
-    (cnmh['tipo_documento'] == "TARJETA DE IDENTIDAD") & 
-    (cnmh['sexo'] == "M"),  1, 0)
-ti_hombre_consistente = ["2", "4", "6", "8", "0"]
+    (~cnmh['documento'].str[9].isin([1,3,5,7,9])) &
+    (cnmh['documento'].str.len() == 11) &
+    (cnmh['tipo_documento'] == 'TARJETA DE IDENTIDAD') &
+    (cnmh['sexo'] == 'M'), 1, 0)
+
 cnmh['documento_TI_hombre_consistente'] = np.where(
-    ~(cnmh['documento'].astype(str).str[9:10].isin(ti_hombre_consistente)) &
-    (cnmh['documento'].astype(str).str.len() == 11) &
-    (cnmh['tipo_documento'] == "TARJETA DE IDENTIDAD") &
-    (cnmh['sexo'] == "H"), 1, 0)
+    (~cnmh['documento'].str[9].isin([0,2,4,6,8])) &
+    (cnmh['documento'].str.len() == 11) &
+    (cnmh['tipo_documento'] == 'TARJETA DE IDENTIDAD') &
+    (cnmh['sexo'] == 'H'), 1, 0)
 
-cnmh['documento'] = np.where((cnmh['documento'].astype(float) == 0), "", cnmh['documento'])
+# Crear un resumen de los resultados
+resumen_documento = cnmh[
+    (cnmh.filter(like='documento_').sum(axis=1) > 0)
+][['tipo_documento', 'numerodocumento', 'documento', 'sexo', 'fechanacimiento']]
 
-# cnmhr=cnmh[cnmh['codigo_unico_fuente']=='103666_AS201407130003_115101']    
-# Crear un DataFrame resumen con las filas que cumplen al menos una condición
-resumen_documento = cnmh[cnmh.filter(like='documento_').sum(axis=1) > 0][['documento_CC_TI_no_numerico', 'documento', 'sexo', 'fecha_nacimiento']]
-# Guardar el DataFrame en un archivo CSV con formato adecuado
-resumen_documento.to_csv("log/revision_documentos_cnmh_se.csv", sep=";", index=False)
-# Contar la cantidad de filas en resumen_documento
-cantidad_filas = len(resumen_documento)
-# Resumen de las columnas de documento_
-# # sale error revisar
-# #resumen_documento.filter(like='documento_').sum()
-# sexo
-cnmh['sexo'] = cnmh['sexo'].apply(lambda x: 'HOMBRE' if x == 'H' else ('MUJER' if x == 'M' else 'NO INFORMA'))
-# Para la columna 'etnia'
-cnmh.rename(columns={'etnia': 'iden_pertenenciaetnica'}, inplace=True)
+#sexo
+# Transformación de género
+cnmh["sexo"] = cnmh["sexo"].apply(lambda x: "HOMBRE" if x == "H" else ("MUJER" if x == "M" else "NO INFORMA"))
+
+# Pertenencia étnica
 homologacion.etnia.etnia_valida (cnmh, etnia = 'iden_pertenenciaetnica')
-
-# fecha de nacimiento
-# Copiar la columna 'fecha_nacimiento' a 'fecha_nacimiento_original'
-cnmh['fecha_nacimiento_original'] = cnmh['fecha_nacimiento']
-# Convertir 'fecha_nacimiento' a formato de año, mes y día separados
-cnmh['anio_nacimiento'] = pd.to_datetime(cnmh['fecha_nacimiento_original'],
-                                         format="%Y-%m-%d").dt.strftime("%Y")
-
-cnmh['mes_nacimiento'] = pd.to_datetime(cnmh['fecha_nacimiento_original'],
-                                        format='%Y-%m-%d').dt.strftime("%m")
-cnmh['dia_nacimiento'] = pd.to_datetime(cnmh['fecha_nacimiento_original'],
-                                        format='%Y-%m-%d').dt.strftime("%d")
+# Fecha de nacimiento
+cnmh["fecha_nacimiento_original"] = pd.to_datetime(cnmh["fechanacimiento"])
+cnmh["anio_nacimiento"] = cnmh["fecha_nacimiento_original"].dt.strftime("%Y")
+cnmh["mes_nacimiento"] = cnmh["fecha_nacimiento_original"].dt.strftime("%m")
+cnmh["dia_nacimiento"] = cnmh["fecha_nacimiento_original"].dt.strftime("%d")
 cnmh['anio_nacimiento'] = pd.to_numeric(cnmh['anio_nacimiento'], errors='coerce')
 cnmh['mes_nacimiento'] = pd.to_numeric(cnmh['mes_nacimiento'], errors='coerce')
 cnmh['dia_nacimiento'] = pd.to_numeric(cnmh['dia_nacimiento'], errors='coerce')
@@ -399,52 +446,44 @@ homologacion.fecha.fechas_validas (cnmh,fecha_dia = 'dia_nacimiento',
                                    fecha = 'fecha_nacimiento_dtf',
                                    fechat= 'fecha_nacimiento')
 
-# Calcula la edad y maneja los casos especiales
-#conteo = cnmh['fecha_ocur_anio'].value_counts()
-#conteo = cnmh['anio_nacimiento'].value_counts()
+# Verificar meses y días de nacimiento
+meses = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
+dias = ["01", "02", "03", "04", "05", "06", "07", "08", "09"] + [str(i) for i in range(10, 32)]
 
-cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len()<1), "0", cnmh['fecha_ocur_anio'])
-cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len()<1), "0", cnmh['anio_nacimiento'])
+cnmh_naci = cnmh[cnmh["anio_nacimiento"].astype(str).isin(map(str, range(1905, 2022))) &
+    cnmh["mes_nacimiento"].astype(str).isin(meses) &
+    cnmh["dia_nacimiento"].astype(str).isin(dias) ]
 
-cnmh['edad'] = np.where(
-    (cnmh['fecha_ocur_anio'].isna() | cnmh['anio_nacimiento'].isna()),
-    np.nan,
-    np.where(
-        cnmh['fecha_ocur_anio'].astype(float) <= cnmh['anio_nacimiento'].astype(float),
-        np.nan,
-        cnmh['fecha_ocur_anio'].astype(float) -
-        cnmh['anio_nacimiento'].astype(float)))
+cnmh_nnaci = cnmh.merge(cnmh_naci, on=['id_registro'], how='left', indicator=True)
+cnmh_nnaci = cnmh_nnaci[cnmh_nnaci['_merge'] == 'left_only']
+cnmh_nnaci = cnmh_nnaci.drop(columns=['_merge'])
 
-cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len()==1), "", cnmh['fecha_ocur_anio'])
-cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len()==1), "", cnmh['anio_nacimiento'])
+# Calcula la edad
+cnmh["edad"] = np.where((cnmh["fecha_ocur_anio"].isna() | cnmh["anio_nacimiento"].isna()), np.nan,
+                        cnmh["fecha_ocur_anio"].astype(float) - cnmh["anio_nacimiento"].astype(float))
+# Reemplaza edades mayores de 100 con NaN
+cnmh["edad"] = np.where(cnmh["edad"] > 100, np.nan, cnmh["edad"])
+# Verifica que la edad esté dentro del rango [1, 100] o sea NaN
+cnmh_nedad = cnmh[(cnmh["edad"].between(1, 100, inclusive=True) == False | cnmh["edad"].isna())]
 
-# Reemplaza edades fuera del rango 1-100 con NaN
-cnmh['edad'] = np.where((cnmh['edad'] > 100) | (cnmh['edad'] < 1), np.nan, cnmh['edad'])
-# Asegura que la columna 'edad' esté dentro del rango 1-100 (permitiendo valores NaN)
-cols_to_clean = ['situacion_actual_des','descripcion_relato',
-                 'codigo_dane_departamento', 'departamento_ocurrencia',
-                 'codigo_dane_municipio', 'municipio_ocurrencia']
+# Identificación de filas Unicas
+cols_to_clean = ['situacion_actual_des']
 for col in cols_to_clean:
     cnmh[col] = cnmh[col].fillna("")
-    
-# Identificación de filas unicas
-# Contar filas originales
-n_1 = len(cnmh)
 # Eliminar duplicados
+n_1 = len(cnmh)
 cnmh = cnmh.drop_duplicates()
-# Contar duplicados eliminados
 n_duplicados = n_1 - len(cnmh)
+
 # Excluir víctimas indirectas
 n_2 = len(cnmh)
-cnmh = cnmh[~cnmh['iden_pertenenciaetnica'].isin(['VICTIMA INDIRECTA'])]
-# Contar víctimas indirectas excluidas
+cnmh = cnmh.dropna(subset=["nombre_completo", "documento", "fecha_ocur_anio", "departamento_ocurrencia"])
 n_indirectas = n_2 - len(cnmh)
 # Excluir personas jurídicas
 n_3 = len(cnmh)
-cnmh = cnmh[~cnmh['tipo_documento'].isin(['PERSONA JURIDICA'])]
-# Contar personas jurídicas excluidas
+cnmh = cnmh.dropna(subset=["nombre_completo"])
 n_juridicas = n_3 - len(cnmh)
-# Crear una lista con los campos requeridos para la comparación de nombres
+# Crear tabla de datos únicamente con los campos requeridos
 campos_requeridos = ['id_registro', 'tabla_origen', 'codigo_unico_fuente',
                      'nombre_completo', 'primer_nombre', 'segundo_nombre', 'primer_apellido',
                      'segundo_apellido', 'documento', 'fecha_nacimiento', 'anio_nacimiento',
@@ -455,35 +494,28 @@ campos_requeridos = ['id_registro', 'tabla_origen', 'codigo_unico_fuente',
                      'codigo_dane_municipio', 'municipio_ocurrencia', 'pres_resp_paramilitares',
                      'pres_resp_grupos_posdesmov', 'pres_resp_agentes_estatales', 'pres_resp_guerr_farc',
                      'pres_resp_guerr_eln', 'pres_resp_guerr_otra', 'pres_resp_otro', 'situacion_actual_des']
-# Verificar si los campos requeridos están presentes en el DataFrame
-campos_faltantes = [campo for campo in campos_requeridos if campo not in cnmh.columns]
-# Seleccionar solo los campos requeridos
-cnmh = cnmh[campos_requeridos]
-# Eliminar duplicados basados en 'id_registro'
-cnmh = cnmh.drop_duplicates(subset=['id_registro'], keep='first')
-# Verificar que el número de registros sea igual al número de códigos únicos de fuente
-cnmh_codigos_unicos = cnmh['codigo_unico_fuente'].nunique()
-# Identificación y eliminacin de Registros No Identificados
-# Filtrar registros con información de identificación
-cnmh_ident = cnmh[(~cnmh['primer_nombre'].isna() | ~cnmh['segundo_nombre'].isna()) &
-                  (~cnmh['primer_apellido'].isna() | ~cnmh['segundo_apellido'].isna()) &
-                  (~cnmh['documento'].isna() | ~cnmh['fecha_ocur_anio'].isna() |
-                   ~cnmh['fecha_ocur_anio'].isna() | ~cnmh['departamento_ocurrencia'].isna())]
-# Filtrar registros sin información de identificación
-cnmh_no_ident = cnmh[~cnmh['id_registro'].isin(cnmh_ident['id_registro'])]
-nrow_cnmh = len(cnmh)
-nrow_cnmh_ident = len(cnmh_ident)
-nrow_cnmh_no_ident = len(cnmh_no_ident)
-# Guardar resultados en la base de datos de destino
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
-engine = create_engine(db_url)# Escribir los DataFrames en las tablas correspondientes en la base de datos
-cnmh_ident.to_sql('CNMH_SE', con=engine, if_exists='replace', index=False)
-cnmh_no_ident.to_sql('CNMH_SE_PNI', con=engine, if_exists='replace', index=False)
-# Cerrar la conexión a la base de datos
-# Registrar información de ejecución
-import yaml
-from datetime import datetime
 
+campos_faltantes = [campo for campo in campos_requeridos if campo not in cnmh.columns]
+print(campos_faltantes)
+
+cnmh = cnmh[campos_requeridos].copy()
+cnmh = cnmh.drop_duplicates(subset=["codigo_unico_fuente"])
+# Identificación y eliminación de registros No Identificados
+cnmh_ident = cnmh.dropna(subset=["primer_nombre", "segundo_nombre", "primer_apellido", "segundo_apellido",
+                                  "documento", "fecha_ocur_anio", "departamento_ocurrencia"])
+
+cnmh_no_ident = cnmh[~cnmh["id_registro"].isin(cnmh_ident["id_registro"])]
+
+db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
+engine = create_engine(db_url)
+
+# Escribir el DataFrame cnmh_ident en la tabla orq_salida.CNMH_RU
+cnmh_ident.to_sql(name='CNMH_RU_jdmc', con=engine, if_exists='replace', index=False)
+
+# Escribir el DataFrame cnmh_no_ident en la tabla orq_salida.CNMH_RU_PNI
+cnmh_no_ident.to_sql(name='CNMH_RU_PNI_jdmc', con=engine, if_exists='replace', index=False)
+
+# Registro de resultados
 fecha_fin = datetime.now()
 
 log = {
@@ -492,15 +524,17 @@ log = {
     "tiempo_ejecucion": str(fecha_fin - fecha_inicio),
     "n_casos": n_casos,  # Debes definir n_casos antes de esta parte
     "n_personas": n_personas,  # Debes definir n_personas antes de esta parte
-    "n_casos_sin_personas": n_casos_sin_personas,
-    'filas_iniciales_cnmh': nrow_cnmh,
-    'filas_final_cnmh': nrow_cnmh,
-    'filas_cnmh_ident': nrow_cnmh_ident,
-    'filas_cnmh_no_ident': nrow_cnmh_no_ident,
-    'n_duplicados': n_duplicados,
-    'n_indirectas': n_indirectas,
-    'n_juridicas': n_juridicas
+    "n_casos_sin_personas": n_casos_sin_personas,  # Debes definir n_casos_sin_personas antes de esta parte
+    "filas_iniciales_cnmh": nrow_cnmh,  # Debes definir nrow_cnmh antes de esta parte
+    "filas_final_cnmh": len(cnmh),
+    "filas_cnmh_ident": len(cnmh_ident),
+    "filas_cnmh_no_ident": len(cnmh_no_ident),
+    "n_duplicados": n_duplicados,  # Debes definir n_duplicados antes de esta parte
+    "n_indirectas": n_indirectas,  # Debes definir n_indirectas antes de esta parte
+    "n_juridicas": n_juridicas,  # Debes definir n_juridicas antes de esta parte
 }
 
-with open('log/resultado_cnmh_se.yaml', 'w') as file:
-    yaml.dump(log, file)
+with open("log/resultado_cnmh_ru.yaml", "w") as yaml_file:
+    yaml.dump(log, yaml_file)
+
+

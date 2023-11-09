@@ -36,8 +36,11 @@ def clean_func(x, na_values):
 
 # Define una función para limpiar nombres y apellidos
 def limpiar_nombres_apellidos(nombre_completo):
-    if nombre_completo in ["PERSONA SIN IDENTIFICAR", "NA"]:
-        return None, None, None, None
+    if nombre_completo is None or pd.notna(nombre_completo):
+       nombre_completo = ""
+    
+    if nombre_completo in ["PERSONA SIN IDENTIFICAR", "NA"] or pd.notna(nombre_completo):
+       nombre_completo = ""
     
     # Divide el nombre completo en tokens
     tokens = re.split(r'\s+', nombre_completo.strip())
@@ -222,6 +225,7 @@ equivalencias_departamento = {
 cnmh["pais_ocurrencia"] = np.where(cnmh["depto_caso"] == "EXTERIOR", np.nan, "COLOMBIA")
 cnmh[["depto_caso", "muninicio_caso"]] = cnmh[["depto_caso", "muninicio_caso"]].apply(lambda x: x.str.strip().str.upper())
 cnmh["depto_caso"] = cnmh["depto_caso"].replace(equivalencias_departamento)
+cnmh.rename(columns={'muninicio_caso': 'municipio_caso'}, inplace=True)
 nrow_cnmh = len(cnmh)
 print("Registros despues de la limpieza dane :",nrow_cnmh)
 # Asegurarse de que los valores en "depto_caso" y "muninicio_caso" estén en "dane"

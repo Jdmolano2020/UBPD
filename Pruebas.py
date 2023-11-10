@@ -12,8 +12,20 @@ import homologacion.nombre_completo
 #df_CNMH_RU = pd.read_stata(
 #    "C:/Users/HP/Documents/FIA/Demo/pruebaBlack/UBPD/datos/BD_CNMH_RU.dta")
 
+df_CEV_JEP = pd.read_stata(
+    "C:/Users/HP/Documents/FIA/Demo/pruebaBlack/UBPD/datos/BD_CEV_JEP.dta")
+
+#df_CNMH_DF = pd.read_stata(
+ #   "C:/Users/HP/Documents/FIA/Demo/pruebaBlack/UBPD/datos/BD_CNMH_DF.dta")
+
+
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)# Escribir los DataFrames en las tablas correspondientes en la base de datos
+
+df_CEV_JEP.to_sql('CEV_JEP_U', con=engine, if_exists='replace', index=False)
+
+#df_CNMH_DF.to_sql('CNMH_DF_U', con=engine, if_exists='replace', index=False)
+
 # df_CNMH_SE.to_sql('CNMH_SE_U', con=engine, if_exists='replace', index=False)
 
 #df_CNMH_RU.to_sql('CNMH_RU_U', con=engine, if_exists='replace', index=False)

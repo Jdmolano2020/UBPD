@@ -2,9 +2,14 @@ import os
 from sqlalchemy import create_engine, text
 import pandas as pd
 import json
-from text_column import aplicar_reglas_validacion
+#from text_column import aplicar_reglas_validacion
 import time
 import homologacion.limpieza
+import homologacion.fecha
+import homologacion.nombres
+import homologacion.documento
+import homologacion.etnia
+import homologacion.nombre_completo
 
 def clean_text(text):
     if text is None or text.isna().any():
@@ -119,6 +124,53 @@ df.rename(columns={
     'departamento_de_ocurrencia': 'departamento_ocurrencia',
     'municipio_de_ocurrencia': 'municipio_ocurrencia'
 }, inplace=True)
+
+# fecha de ocurrencia 
+df['fecha_ocur_anio'] = pd.to_numeric(df['fecha_ocur_anio'], errors='coerce')
+df['fecha_ocur_mes'] = pd.to_numeric(df['fecha_ocur_mes'], errors='coerce')
+df['fecha_ocur_dia'] = pd.to_numeric(df['fecha_ocur_dia'], errors='coerce')
+homologacion.fecha.fechas_validas (df,fecha_dia = 'fecha_ocur_dia', 
+                                   fecha_mes = 'fecha_ocur_mes',
+                                   fecha_anio = 'fecha_ocur_anio',
+                                   fecha = 'fecha_desaparicion_dtf',
+                                   fechat= 'fecha_desaparicion')
+
+# nombres y apellidos
+
+df['nombre_completo'] = df['nombre_completo'].replace('PERSONA SIN IDENTIFICAR', pd.NA)  # Reemplaza 'PERSONA SIN IDENTIFICAR' con NaN
+df['nombre_completo'] = df['nombre_completo'].str.replace(r'\bNA\b', '', regex=True)  # Elimina la palabra 'NA' entre espacios en blanco
+df['nombre_completo'] = df['nombre_completo'].fillna("")
+# Aplica la función a la columna "nombre_completo"
+df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']] = df['nombre_completo'].apply(lambda x: pd.Series(homologacion.nombre_completo.limpiar_nombre_completo(x)))
+
+homologacion.nombres.nombres_validos (df , primer_nombre = 'primer_nombre',
+                 segundo_nombre = 'segundo_nombre',
+                 primer_apellido = 'primer_apellido',
+                 segundo_apellido = 'segundo_apellido',
+                 nombre_completo = 'nombre_completo')
+
+# Documento
+# Eliminar espacios en blanco al principio y al final de la columna numero_documento
+df['documento'] = df['documento'].str.strip()
+homologacion.documento.documento_valida (df, documento = 'documento')
+
+
+# Pertenencia étnica
+homologacion.etnia.etnia_valida (df, etnia = 'iden_pertenenciaetnica')
+
+
+# fecha de nacimiento 
+df['anio_nacimiento'] = pd.to_numeric(df['anio_nacimiento'], errors='coerce')
+df['mes_nacimiento'] = pd.to_numeric(df['mes_nacimiento'], errors='coerce')
+df['dia_nacimiento'] = pd.to_numeric(df['dia_nacimiento'], errors='coerce')
+
+homologacion.fecha.fechas_validas (df,fecha_dia = 'dia_nacimiento', 
+                                   fecha_mes = 'mes_nacimiento',
+                                   fecha_anio = 'anio_nacimiento',
+                                   fecha = 'fecha_nacimiento_dtf',
+                                   fechat= 'fecha_nacimiento')
+
+
 print(df.columns)
 
 

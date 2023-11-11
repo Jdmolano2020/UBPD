@@ -471,7 +471,8 @@ cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len()==1), "", c
 cnmh["edad"] = np.where((cnmh["edad"] > 100) | (cnmh["edad"] < 0) , np.nan, cnmh["edad"])
 # Verifica que la edad esté dentro del rango [1, 100] o sea NaN
 cnmh_nedad = cnmh[(cnmh["edad"].between(1, 100, inclusive=True) == False | cnmh["edad"].isna())]
-
+cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len()<1), "0", cnmh['fecha_ocur_anio'])
+cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len()<1), "0", cnmh['anio_nacimiento'])
 # Identificación de filas Unicas
 cols_to_clean = ['situacion_actual_des','descripcion_relato']
 for col in cols_to_clean:

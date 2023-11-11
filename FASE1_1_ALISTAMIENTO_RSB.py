@@ -136,7 +136,6 @@ homologacion.fecha.fechas_validas (df,fecha_dia = 'fecha_ocur_dia',
                                    fechat= 'fecha_desaparicion')
 
 # nombres y apellidos
-
 df['nombre_completo'] = df['nombre_completo'].replace('PERSONA SIN IDENTIFICAR', pd.NA)  # Reemplaza 'PERSONA SIN IDENTIFICAR' con NaN
 df['nombre_completo'] = df['nombre_completo'].str.replace(r'\bNA\b', '', regex=True)  # Elimina la palabra 'NA' entre espacios en blanco
 df['nombre_completo'] = df['nombre_completo'].fillna("")

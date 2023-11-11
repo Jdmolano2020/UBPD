@@ -158,7 +158,7 @@ variables_limpieza = [
     "viol_cuerpo_nombre", "sig_viol_cuerpo", "signos_violencia_sexual",
     "desc_sig_vs", "disposicion_cuerpo", "d_disp_cuerpo", "depto_aparic",
     "vereda_sitio_ap", "esc_aparic", "reg_hechos_gao", "entidad_recep_denun",
-    "mun_denun", "depto_denun","descripcion_relato","situacion_actual_des"]
+    "mun_denun", "depto_denun"]
 
 # Aplicar las transformaciones a las columnas de tipo 'str'
 cnmh[variables_limpieza] = cnmh[variables_limpieza].apply(clean_text)
@@ -655,6 +655,3 @@ log = {
 # Guardar el log en un archivo YAML
 with open('log/resultado_cnmh.yaml', 'w') as file:
     yaml.dump(log, file)
-
-
-

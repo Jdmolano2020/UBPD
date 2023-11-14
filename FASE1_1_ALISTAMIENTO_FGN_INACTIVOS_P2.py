@@ -17,7 +17,7 @@ import homologacion.etnia
 
 def clean_text(text):
     if text is None or text.isna().any():
-        text = text.astype(str)      
+        text = text.astype(str)
     text = text.apply(homologacion.limpieza.normalize_text)
     return text
 
@@ -58,27 +58,22 @@ if parametro_cantidad != "":
 archivo_csv = os.path.join("fuentes secundarias",
                            "V_FGN_INACTIVOS.csv")
 df.to_csv(archivo_csv, index=False)
-# Cambiar directorio de trabajo
-# #os.chdir(os.path.join(ruta, "fuentes secundarias"))
-# Traducir la codificación Unicode
-# #archivo_a_traducir = "V_FGN_INACTIVOS.dta"
-# #archivo_utf8 = archivo_a_traducir.replace(".dta", "_utf8.dta")
-# #if os.path.exists(archivo_a_traducir):
-# #    os.system(
-# #        f'unicode translate "{archivo_a_traducir}" "{archivo_utf8}" transutf8')
-# #    os.remove(archivo_a_traducir)
-# Crear un identificador de registro
 # #df = pd.read_csv(archivo_csv)
 df.columns = df.columns.str.lower()
 df['duplicates_reg'] = df.duplicated()
 df = df[~df['duplicates_reg']]
 
 # Ordenar el DataFrame por las columnas especificadas
-columnas_ordenadas = ['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'nombre_completo',
-                      'documento', 'edad_des_inf', 'edad_des_sup', 'dia_nacimiento', 'mes_nacimiento',
-                      'anio_nacimiento_ini', 'anio_nacimiento_fin', 'sexo', 'codigo_dane_departamento',
-                      'codigo_dane_municipio', 'fecha_ocur_dia', 'fecha_ocur_mes', 'fecha_ocur_anio',
-                      'tipo_de_hecho', 'presunto_responsable', 'codigo_unico_fuente']
+columnas_ordenadas = ['primer_nombre', 'segundo_nombre', 'primer_apellido',
+                      'segundo_apellido', 'nombre_completo',
+                      'documento', 'edad_des_inf', 'edad_des_sup',
+                      'dia_nacimiento', 'mes_nacimiento',
+                      'anio_nacimiento_ini', 'anio_nacimiento_fin',
+                      'sexo', 'codigo_dane_departamento',
+                      'codigo_dane_municipio', 'fecha_ocur_dia',
+                      'fecha_ocur_mes', 'fecha_ocur_anio',
+                      'tipo_de_hecho', 'presunto_responsable',
+                      'codigo_unico_fuente']
 
 df = df.sort_values(by=columnas_ordenadas)
 
@@ -91,9 +86,6 @@ df['in_fgn_inactivos'] = 1
 # Número observaciones en la tabla
 numero_observaciones = len(df)
 # 1. Seleccionar variables que serán homologadas para la integración
-# #columnas_a_eliminar = ['lugar_ocurr_territorio_colectivo', 'departamento_de_ocurrencia',
-# #                       'municipio_de_ocurrencia', 'tipo_documento', 'tipo_otro_nombre', 'otro_nombre']
-
 # #df = df.drop(columns=columnas_a_eliminar)
 # 2. Normalización de los campos de texto
 # Eliminación de acento, "NO APLICA", "NULL"
@@ -138,10 +130,11 @@ na_values = {
 df[variables_a_convertir] = df[variables_a_convertir].replace(na_values)
 
 # 3. Homologación de estructura, formato y contenido
-# Datos sobre los hechos	
+# Datos sobre los hechos
 # Lugar de ocurrencia- País/Departamento/Muncipio
 # Crear la variable 'pais_ocurrencia' basada en 'pais_de_ocurrencia'
-df['pais_ocurrencia'] = np.where((df['pais_de_ocurrencia'] == '57'),'COLOMBIA',None)
+df['pais_ocurrencia'] = np.where((df['pais_de_ocurrencia'] == '57'),
+                                 'COLOMBIA', None)
 # #df.drop(columns=['pais_de_ocurrencia'], inplace=True)
 # Realizar un merge con el archivo DIVIPOLA_departamentos_122021.dta
 dane = pd.read_stata(
@@ -154,10 +147,11 @@ dane = dane.rename(columns={
     'municipio': 'municipio_ocurrencia'
 })
 # Realizar la unión (left join) con "dane"
-df = pd.merge(df, dane, how='left', left_on=['codigo_dane_departamento', 'codigo_dane_municipio'],
-                right_on=['codigo_dane_departamento', 'codigo_dane_municipio'])
+df = pd.merge(df, dane, how='left', left_on=['codigo_dane_departamento',
+                                             'codigo_dane_municipio'],
+              right_on=['codigo_dane_departamento', 'codigo_dane_municipio'])
 nrow_df = len(df)
-print("Registros despues left dane depto muni:",nrow_df)
+print("Registros despues left dane depto muni:", nrow_df)
 
 # Procesamiento de fechas de ocurrencia
 
@@ -169,12 +163,16 @@ df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('179', '197', n=1)
 df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('169', '196', n=1)
 df['fecha_ocur_anio'] = df['fecha_ocur_anio'].str.replace('159', '195', n=1)
 
-df['fecha_ocur_anio'] = pd.to_numeric(df['ymd_hecho'].str[0:4], errors='coerce')
+df['fecha_ocur_anio'] = pd.to_numeric(df['ymd_hecho'].str[0:4],
+                                      errors='coerce')
 df['fecha_ocur_mes'] = pd.to_numeric(df['ymd_hecho'].str[5:7], errors='coerce')
-df['fecha_ocur_dia'] = pd.to_numeric(df['ymd_hecho'].str[8:10], errors='coerce')
-homologacion.fecha.fechas_validas (df,fecha_dia = 'fecha_ocur_dia', fecha_mes = 'fecha_ocur_mes',
-                                   fecha_anio = 'fecha_ocur_anio', fecha = 'fecha_desaparicion_dtf',
-                                   fechat= 'fecha_desaparicion')
+df['fecha_ocur_dia'] = pd.to_numeric(df['ymd_hecho'].str[8:10],
+                                     errors='coerce')
+homologacion.fecha.fechas_validas(df, fecha_dia='fecha_ocur_dia',
+                                  fecha_mes='fecha_ocur_mes',
+                                  fecha_anio='fecha_ocur_anio',
+                                  fecha='fecha_desaparicion_dtf',
+                                  fechat='fecha_desaparicion')
 # Tipo de responsable
 # Paramilitares
 FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES.homologar_paramilitares(df)
@@ -189,9 +187,10 @@ FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_ELN.homologar_eln(df)
 # Otra guerrilla y grupo guerrillero no determinado
 FASE1_HOMOLOGACION_CAMPO_OTRAS_GUERRILLAS.homologar_otras_guerrillas(df)
 # Otro actor- PENDIENTE
-# Aplicar las condiciones y asignar 1 a pres_resp_otro cuando todas las condiciones se cumplan.
+# Aplicar las condiciones y asignar 1 a pres_resp_otro
+# cuando todas las condiciones se cumplan.
 df['pres_resp_otro'] = 0
-df.loc[(df['presunto_responsable'] != "") & 
+df.loc[(df['presunto_responsable'] != "") &
        (df['presunto_responsable'].str.contains("PENDIENTE") == False) &
        (df['presunto_responsable'].str.contains("INFORMACION") == False) &
        (df['presunto_responsable'].str.contains("DETERMINAR") == False) &
@@ -207,7 +206,8 @@ df.loc[(df['presunto_responsable'] != "") &
 # Tipo de hecho
 # Crear la variable TH_DF
 df['TH_DF'] = 0
-df.loc[(df['tipo_de_hecho'].str.contains("DESAPARICION")) & (df['tipo_de_hecho'].str.contains("FORZADA")), 'TH_DF'] = 1
+df.loc[(df['tipo_de_hecho'].str.contains("DESAPARICION")) &
+       (df['tipo_de_hecho'].str.contains("FORZADA")), 'TH_DF'] = 1
 # Crear la variable TH_SE
 df['TH_SE'] = 0
 df.loc[df['tipo_de_hecho'].str.contains("SECUESTRO"), 'TH_SE'] = 1
@@ -230,21 +230,20 @@ df['descripcion_relato'] = df['descripcion_relato'].str.upper()
 # Nombres y apelllidos
 # Corrección del uso de artículos y preposiciones en los nombres
 # Reemplazar valores en segundo_nombre
-homologacion.nombres.nombres_validos (df , primer_nombre = 'primer_nombre',
-                 segundo_nombre = 'segundo_nombre',
-                 primer_apellido = 'primer_apellido',
-                 segundo_apellido = 'segundo_apellido',
-                 nombre_completo = 'nombre_completo')
+homologacion.nombres.nombres_validos(df, primer_nombre='primer_nombre',
+                                     segundo_nombre='segundo_nombre',
+                                     primer_apellido='primer_apellido',
+                                     segundo_apellido='segundo_apellido',
+                                     nombre_completo='nombre_completo')
 
 # Documento
 # Eliminar símbolos y caracteres especiales
 # Convertir todos los caracteres a mayúsculas
-homologacion.documento.documento_valida (df, documento = 'documento')
+homologacion.documento.documento_valida(df, documento='documento')
 # Pertenencia_etnica [NARP; INDIGENA; RROM; MESTIZO]
-homologacion.etnia.etnia_valida (df, etnia = 'iden_pertenenciaetnica')
+homologacion.etnia.etnia_valida(df, etnia='iden_pertenenciaetnica')
 # Fecha de nacimiento- Validar rango
 # Eliminar columnas que empiezan con "anio_nacimiento"
-# columns_to_drop = [col for col in df.columns if col.startswith("anio_nacimiento")]
 # df.drop(columns=columns_to_drop, inplace=True)
 # Crear una columna "anio_nacimiento" vacía
 # #df['anio_nacimiento'] = ""
@@ -257,34 +256,53 @@ homologacion.etnia.etnia_valida (df, etnia = 'iden_pertenenciaetnica')
 # #df.loc[df['dia_nacimiento'] == ".", 'dia_nacimiento'] = ""
 # Crear una columna "fecha_nacimiento" vacía
 # #df['fecha_nacimiento'] = ""
-df['anio_nacimiento'] = pd.to_numeric(df['anio_nacimiento_ini'], errors='coerce')
+df['anio_nacimiento'] = pd.to_numeric(df['anio_nacimiento_ini'],
+                                      errors='coerce')
 df['mes_nacimiento'] = pd.to_numeric(df['mes_nacimiento'], errors='coerce')
 df['dia_nacimiento'] = pd.to_numeric(df['dia_nacimiento'], errors='coerce')
-homologacion.fecha.fechas_validas (df,fecha_dia = 'dia_nacimiento', fecha_mes = 'mes_nacimiento', fecha_anio = 'anio_nacimiento', fechat = 'fecha_nacimiento', fecha = 'fecha_nacimiento_dft')
+homologacion.fecha.fechas_validas(df, fecha_dia='dia_nacimiento',
+                                  fecha_mes='mes_nacimiento',
+                                  fecha_anio='anio_nacimiento',
+                                  fechat='fecha_nacimiento',
+                                  fecha='fecha_nacimiento_dft')
 
 # Edad
 # Validación de rango
 # Calcular la variable "edad" en función de las condiciones especificadas
 df['edad'] = 0  # Crear la columna "edad" inicialmente con valor 0
 # Calcular "edad" en función de las condiciones especificadas
-df.loc[(df['edad_des_inf'] != 0) & (df['edad_des_sup'] == 0), 'edad'] = df['edad_des_inf']
-df.loc[(df['edad_des_inf'] == 0) & (df['edad_des_sup'] != 0), 'edad'] = df['edad_des_sup']
-df.loc[(df['edad_des_inf'] < df['edad_des_sup']) & (df['edad_des_inf'] != 0) & (df['edad_des_sup'] != 0), 'edad'] = df['edad_des_inf']
-df.loc[(df['edad_des_inf'] >= df['edad_des_sup']) & (df['edad_des_inf'] != 0) & (df['edad_des_sup'] != 0), 'edad'] = df['edad_des_sup']
+df.loc[(df['edad_des_inf'] != 0) &
+       (df['edad_des_sup'] == 0), 'edad'] = df['edad_des_inf']
+df.loc[(df['edad_des_inf'] == 0) &
+       (df['edad_des_sup'] != 0), 'edad'] = df['edad_des_sup']
+df.loc[(df['edad_des_inf'] < df['edad_des_sup']) &
+       (df['edad_des_inf'] != 0) &
+       (df['edad_des_sup'] != 0), 'edad'] = df['edad_des_inf']
+df.loc[(df['edad_des_inf'] >= df['edad_des_sup']) &
+       (df['edad_des_inf'] != 0) &
+       (df['edad_des_sup'] != 0), 'edad'] = df['edad_des_sup']
 # Reemplazar valores mayores de 100 con valores faltantes
-df.loc[df['edad'] > 100, 'edad'] = None  # None representa un valor faltante en Pandas
-# Reemplazar "edad" con 0 cuando ambas "edad_des_inf" y "edad_des_sup" son iguales a 0
-df.loc[(df['edad_des_inf'] == 0) & (df['edad_des_sup'] == 0), 'edad'] = 0
+df.loc[df['edad'] > 100, 'edad'] = None
+# Reemplazar "edad" con 0 cuando ambas
+# "edad_des_inf" y "edad_des_sup" son iguales a 0
+df.loc[(df['edad_des_inf'] == 0) &
+       (df['edad_des_sup'] == 0), 'edad'] = 0
 # Eliminar las columnas "edad_des_inf" y "edad_des_sup"
 df.drop(columns=['edad_des_inf', 'edad_des_sup'], inplace=True)
-# 4. Identificación y eliminación de Registros No Identificados (registros sin datos suficientes para la individualización de las víctimas) 
-# Calcular la variable "non_miss" que cuenta la cantidad de columnas no faltantes por fila
-df['non_miss'] = df[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].count(axis=1)
+# 4. Identificación y eliminación de Registros No Identificados
+# (registros sin datos suficientes para la individualización de las víctimas)
+# Calcular la variable "non_miss" que cuenta la cantidad de columnas no
+# faltantes por fila
+df['non_miss'] = df[['primer_nombre',
+                     'segundo_nombre',
+                     'primer_apellido', 'segundo_apellido']].count(axis=1)
 # Calcular la variable "rni" en función de las condiciones especificadas
-df['rni'] = (df['non_miss'] < 2) | (df['primer_nombre'] == "") | (df['primer_apellido'] == "") | ((df['codigo_dane_departamento'] == "") & (df['fecha_ocur_anio'] == "") & (df['documento'] == ""))
+df['rni'] = (
+    df['non_miss'] < 2) | (df['primer_nombre'] == "") | (df['primer_apellido'] == "") | ((df['codigo_dane_departamento'] == "") & (df['fecha_ocur_anio'] == "") & (df['documento'] == ""))
 # Calcular "rni_" y "N" por grupo de "codigo_unico_fuente"
 df['rni_'] = df.groupby('codigo_unico_fuente')['rni'].transform('sum')
-df['N'] = df.groupby('codigo_unico_fuente')['codigo_unico_fuente'].transform('count')
+df['N'] = df.groupby(
+    'codigo_unico_fuente')['codigo_unico_fuente'].transform('count')
 # Guardar registros no individualizables en un nuevo archivo
 df_rni = df[df['rni'] == 1].copy()
 # Guardar resultados en la base de datos de destino

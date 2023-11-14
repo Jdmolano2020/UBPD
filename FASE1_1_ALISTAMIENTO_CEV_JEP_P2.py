@@ -2,7 +2,6 @@ import os
 from sqlalchemy import create_engine
 import pandas as pd
 import numpy as np
-import re
 import homologacion.limpieza
 import homologacion.fecha
 import homologacion.nombres
@@ -10,23 +9,25 @@ import homologacion.documento
 import homologacion.etnia
 import homologacion.nombre_completo
 
+
 # creacion de las funciones requeridas
 def clean_text(text):
     if text is None or text.isna().any():
-        text = text.astype(str)      
+        text = text.astype(str)
     text = text.apply(homologacion.limpieza.normalize_text)
     return text
+
 
 def concat_values(*args):
     return ' '.join(arg for arg in args if arg.strip())
 
-# Asegúrate de importar la biblioteca pandas antes de usar df (DataFrame) y su columna 'var'
 
 # parametros programa stata
 parametro_ruta = ""
 parametro_cantidad = ""
 # Establecer la ruta de trabajo
-ruta = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso" # Cambia esto según tu directorio
+ruta = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso" 
+# Cambia esto según tu directorio
 
 # Verificar si `1` es una cadena vacía y ajustar el directorio de trabajo
 # en consecuencia
@@ -103,7 +104,6 @@ variables_a_mantener = [
     'in_df', 'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
     'in_cceeu', 'in_caribe', 'narrativo_hechos',  'tabla_origen'
 ]
-# #df = df[variables_a_mantener]
 # Definir una lista de valores a reemplazar
 na_values = {
     "NO APLICA": np.nan,
@@ -138,12 +138,14 @@ df.drop(columns=['muni_code_hecho'], inplace=True)
 dane = pd.read_stata(
     "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
 
-df = pd.merge(df, dane, how='left', left_on=['codigo_dane_departamento', 'codigo_dane_municipio'],
-                right_on=['codigo_dane_departamento', 'codigo_dane_municipio'])
+df = pd.merge(df, dane, how='left',
+              left_on=['codigo_dane_departamento',
+                       'codigo_dane_municipio'],
+              right_on=['codigo_dane_departamento', 'codigo_dane_municipio'])
 
 df.rename(columns={'departamento': 'departamento_ocurrencia'}, inplace=True)
 
-# fecha de ocurrencia 
+# fecha de ocurrencia
 df['ymd_hecho'] = df['ymd_hecho'].astype(str)
 df['fecha_ocur_anio'] = df['ymd_hecho'].str[0:4]
 df['fecha_ocur_mes'] = df['ymd_hecho'].str[4:6]
@@ -152,11 +154,11 @@ df['fecha_ocur_dia'] = df['ymd_hecho'].str[6:8]
 df['fecha_ocur_anio'] = pd.to_numeric(df['fecha_ocur_anio'], errors='coerce')
 df['fecha_ocur_mes'] = pd.to_numeric(df['fecha_ocur_mes'], errors='coerce')
 df['fecha_ocur_dia'] = pd.to_numeric(df['fecha_ocur_dia'], errors='coerce')
-homologacion.fecha.fechas_validas (df,fecha_dia = 'fecha_ocur_dia', 
-                                   fecha_mes = 'fecha_ocur_mes',
-                                   fecha_anio = 'fecha_ocur_anio',
-                                   fecha = 'fecha_desaparicion_dtf',
-                                   fechat= 'fecha_desaparicion')
+homologacion.fecha.fechas_validas(df, fecha_dia='fecha_ocur_dia',
+                                  fecha_mes='fecha_ocur_mes',
+                                  fecha_anio='fecha_ocur_anio',
+                                  fecha='fecha_desaparicion_dtf',
+                                  fechat='fecha_desaparicion')
 # Presuntos responsables
 df.rename(
     columns={
@@ -169,8 +171,9 @@ df.rename(
         'perp_otro': 'pres_resp_otro'},
     inplace=True)
 
-df['pres_resp_guerr_otra'] = np.where(
-    ((df['perp_guerrilla'] == 1.0)  &  (df['pres_resp_guerr_otra'] == 0.0)),1,0)
+df['pres_resp_guerr_otra'] = np.where(((df['perp_guerrilla'] == 1.0) &
+                                       (df['pres_resp_guerr_otra'] == 0.0)),
+                                      1, 0)
 
 # Tipo de hecho
 df['TH_DF'] = df['tipohecho'].str.contains('DESAPARICION').astype(int)
@@ -195,23 +198,24 @@ df.rename(columns={'nombre_1': 'primer_nombre',
                    'nombre_apellido_completo': 'nombre_completo'},
           inplace=True)
 
-homologacion.nombres.nombres_validos (df , primer_nombre = 'primer_nombre',
-                 segundo_nombre = 'segundo_nombre',
-                 primer_apellido = 'primer_apellido',
-                 segundo_apellido = 'segundo_apellido',
-                 nombre_completo = 'nombre_completo')
+homologacion.nombres.nombres_validos(df, primer_nombre='primer_nombre',
+                                     segundo_nombre='segundo_nombre',
+                                     primer_apellido='primer_apellido',
+                                     segundo_apellido='segundo_apellido',
+                                     nombre_completo='nombre_completo')
 # Documento
-# Eliminar espacios en blanco al principio y al final de la columna numero_documento
+# Eliminar espacios en blanco al principio
+# y al final de la columna numero_documento
 df['cedula'] = df['cedula'].astype(str)
 df['documento'] = df['cedula'].fillna('')
 df['documento'] = df['documento'].str.strip()
-homologacion.documento.documento_valida (df, documento = 'documento')
+homologacion.documento.documento_valida(df, documento='documento')
 # Transformar la columna 'sexo'
 df['sexo'].replace({'OTRO': 'INTERSEX'}, inplace=True)
 # Transformar la columna 'iden_pertenenciaetnica' y renombrarla
 df['iden_pertenenciaetnica'] = df['etnia']
 # Pertenencia étnica
-homologacion.etnia.etnia_valida (df, etnia = 'iden_pertenenciaetnica')
+homologacion.etnia.etnia_valida(df, etnia='iden_pertenenciaetnica')
 # 237
 # Fecha de nacimiento
 
@@ -219,11 +223,11 @@ df['anio_nacimiento'] = pd.to_numeric(df['yy_nacimiento'], errors='coerce')
 df['mes_nacimiento'] = pd.to_numeric(df['mm_nacimiento'], errors='coerce')
 df['dia_nacimiento'] = pd.to_numeric(df['dd_nacimiento'], errors='coerce')
 
-homologacion.fecha.fechas_validas (df,fecha_dia = 'dia_nacimiento', 
-                                   fecha_mes = 'mes_nacimiento',
-                                   fecha_anio = 'anio_nacimiento',
-                                   fecha = 'fecha_nacimiento_dtf',
-                                   fechat= 'fecha_nacimiento')
+homologacion.fecha.fechas_validas(df, fecha_dia='dia_nacimiento',
+                                  fecha_mes='mes_nacimiento',
+                                  fecha_anio='anio_nacimiento',
+                                  fecha='fecha_nacimiento_dtf',
+                                  fechat='fecha_nacimiento')
 
 # Edad
 # Validación de rango
@@ -231,8 +235,10 @@ homologacion.fecha.fechas_validas (df,fecha_dia = 'dia_nacimiento',
 df.loc[(df['edad'] < 0) | (df['edad'] > 100), 'edad'] = None
 # Crear la columna 'edad_desaparicion_est'
 df['edad_desaparicion_est'] = (
-    (df['fecha_desaparicion_dtf'].dt.year * 12 + df['fecha_desaparicion_dtf'].dt.month) - (
-        df['fecha_nacimiento_dtf'].dt.year * 12 + df['fecha_nacimiento_dtf'].dt.month)) // 12
+    (df['fecha_desaparicion_dtf'].dt.year * 12 +
+     df['fecha_desaparicion_dtf'].dt.month) -
+    (df['fecha_nacimiento_dtf'].dt.year * 12 +
+     df['fecha_nacimiento_dtf'].dt.month)) // 12
 # Calcular la diferencia absoluta entre 'edad' y 'edad_desaparicion_est'
 df['dif_edad'] = abs(df['edad_desaparicion_est'] - df['edad'])
 
@@ -314,18 +320,19 @@ columnas_a_mantener = [
     'mes_nacimiento', 'dia_nacimiento', 'edad', 'fecha_desaparicion',
     'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 'pais_ocurrencia',
     'codigo_dane_departamento', 'departamento_ocurrencia',
-    'codigo_dane_municipio', 'municipio', 
-    'TH_DF','TH_SE', 'TH_RU', 
+    'codigo_dane_municipio', 'municipio',
+    'iden_pertenenciaetnica',
+    'TH_DF', 'TH_SE', 'TH_RU',
     'pres_resp_agentes_estatales', 'pres_resp_grupos_posdesmov',
     'pres_resp_paramilitares', 'pres_resp_guerr_eln', 'pres_resp_guerr_farc',
     'pres_resp_guerr_otra',  'pres_resp_otro',
-    'descripcion_relato', 
+    'descripcion_relato',
     'in_ruv', 'in_vp_das', 'in_urt', 'in_uph', 'in_up', 'in_sindicalistas',
     'in_sijyp', 'in_ponal', 'in_pgn', 'in_personeria', 'in_paislibre',
     'in_onic', 'in_oacp', 'in_mindefensa', 'in_jmp', 'in_inml', 'in_icbf',
     'in_forjandofuturos', 'in_fgn', 'in_ejercito', 'in_credhos', 'in_conase',
-    'in_df', 'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
-    'in_cceeu', 'in_caribe','rni','non_miss' ]
+    'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
+    'in_cceeu', 'in_caribe', 'rni', 'non_miss']
 # Filtrar las columnas que deseas mantener en el DataFrame
 df = df[columnas_a_mantener]
 # Crear una columna 'nonmiss' que cuente la cantidad de valores no nulos
@@ -335,16 +342,16 @@ columnas_no_nulas = [
     'nombre_completo', 'documento', 'sexo', 'edad', 'dia_nacimiento',
     'mes_nacimiento', 'anio_nacimiento', 'etnia', 'TH_DF',
     'TH_SE', 'TH_RU', 'fecha_ocur_dia', 'fecha_ocur_mes', 'fecha_ocur_anio',
-    'codigo_dane_departamento', 'codigo_dane_municipio', 
+    'codigo_dane_departamento', 'codigo_dane_municipio',
     'pres_resp_agentes_estatales', 'pres_resp_grupos_posdesmov',
     'pres_resp_paramilitares', 'pres_resp_guerr_eln', 'pres_resp_guerr_farc',
-    'pres_resp_guerr_otra',  'pres_resp_otro', 
-    'descripcion_relato', 
+    'pres_resp_guerr_otra',  'pres_resp_otro',
+    'descripcion_relato',
     'in_ruv', 'in_vp_das', 'in_urt', 'in_uph', 'in_up', 'in_sindicalistas',
     'in_sijyp', 'in_ponal', 'in_pgn', 'in_personeria', 'in_paislibre',
     'in_onic', 'in_oacp', 'in_mindefensa', 'in_jmp', 'in_inml', 'in_icbf',
     'in_forjandofuturos', 'in_fgn', 'in_ejercito', 'in_credhos', 'in_conase',
-    'in_df', 'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
+    'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
     'in_cceeu', 'in_caribe']
 df['nonmiss'] = df[columnas_no_nulas].count(axis=1)
 # Ordenar el DataFrame
@@ -355,6 +362,4 @@ df = df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first')
 # #df.drop(columns=['rni*', 'nonmiss'], inplace=True)
 df.to_csv("archivos depurados/BD_CEV_JEP.csv", index=False)
 # 318
-df.to_sql(name="BD_CEV_JEP", con=engine, if_exists="replace",
-                  index=False)
-
+df.to_sql(name="BD_CEV_JEP", con=engine, if_exists="replace", index=False)

@@ -2,7 +2,6 @@ import sys
 import os
 import pandas as pd
 import hashlib
-import re
 from datetime import datetime
 from sqlalchemy import create_engine
 import numpy as np
@@ -14,12 +13,14 @@ import homologacion.documento
 import homologacion.etnia
 import homologacion.nombre_completo
 
+
 # creacion de las funciones requeridas
 def clean_text(text):
     if text is None or text.isna().any():
-        text = text.astype(str)      
+        text = text.astype(str)
     text = text.apply(homologacion.limpieza.normalize_text)
     return text
+
 
 # creacion de las funciones requeridas
 def funcion_hash(row):
@@ -55,8 +56,7 @@ dane = dane.rename(columns={
     'codigo_dane_departamento': 'codigo_dane_departamento',
     'departamento': 'departamento_ocurrencia',
     'codigo_dane_municipio': 'codigo_dane_municipio',
-    'municipio': 'municipio_ocurrencia'
-})
+    'municipio': 'municipio_ocurrencia'})
 # Seleccionar columnas y eliminar 'categoria_divipola'
 dane = dane.drop(columns=['categoria_divipola'])
 # Crear un DataFrame con las filas adicionales
@@ -65,8 +65,7 @@ additional_data = pd.DataFrame({
     'departamento_ocurrencia': [np.nan, "GUAINIA", "VICHADA", "VICHADA"],
     'codigo_dane_municipio': [np.nan, "94663", "99572", "99760"],
     'municipio_ocurrencia': [np.nan, "MAPIRIPANA", "SANTA RITA",
-                             "SAN JOSE DE OCUNE"]
-})
+                             "SAN JOSE DE OCUNE"]})
 # Concatenar los DataFrames
 dane = pd.concat([dane, additional_data], ignore_index=True)
 
@@ -136,8 +135,7 @@ cnmh['tabla_origen'] = "CNMH_DF"
 na_values = {
     "SIN INFORMACION": np.nan,
     "ND": np.nan,
-    "AI": np.nan
-}
+    "AI": np.nan}
 
 variables_limpieza = [
     "estado", "zon_id_lugar_del_hecho", "municipio_caso", "depto_caso",
@@ -158,7 +156,7 @@ variables_limpieza = [
     "viol_cuerpo_nombre", "sig_viol_cuerpo", "signos_violencia_sexual",
     "desc_sig_vs", "disposicion_cuerpo", "d_disp_cuerpo", "depto_aparic",
     "vereda_sitio_ap", "esc_aparic", "reg_hechos_gao", "entidad_recep_denun",
-    "mun_denun", "depto_denun"]
+    "mun_denun", "depto_denun", "tipo_desaparicion", "otro_hecho_simultaneo"]
 
 # Aplicar las transformaciones a las columnas de tipo 'str'
 cnmh[variables_limpieza] = cnmh[variables_limpieza].apply(clean_text)
@@ -196,40 +194,43 @@ mapeo_depto = {
     'GUICAN': 'GUICAN DE LA SIERRA',
     'FRONTERA': None,
     'FRONTERA ECUADOR': None,
-    'YACARATE': 'YAVARATE'
-}
+    'YACARATE': 'YAVARATE'}
 
 # A continuación, aseguramos que los valores de 'depto_caso' y 'municipio_caso'
 cnmh["depto_caso"] = cnmh["depto_caso"].replace(mapeo_depto)
 cnmh["municipio_caso"] = cnmh["municipio_caso"].replace(mapeo_depto)
 
 # Realizar la unión (left join) con "dane"
-cnmh = pd.merge(cnmh, dane, how='left', left_on=['depto_caso', 'municipio_caso'],
+cnmh = pd.merge(cnmh, dane, how='left', left_on=['depto_caso',
+                                                 'municipio_caso'],
                 right_on=['departamento_ocurrencia', 'municipio_ocurrencia'])
 nrow_cnmh = len(cnmh)
-print("Registros despues left dane depto muni:",nrow_cnmh)
+print("Registros despues left dane depto muni:", nrow_cnmh)
 cnmh_ndp = cnmh[cnmh["departamento_ocurrencia"].isna()]
-# fecha de ocurrencia 
+# fecha de ocurrencia
 cnmh['fecha_ocur_anio'] = pd.to_numeric(cnmh['annoh'], errors='coerce')
 cnmh['fecha_ocur_mes'] = pd.to_numeric(cnmh['mesh'], errors='coerce')
 cnmh['fecha_ocur_dia'] = pd.to_numeric(cnmh['diah'], errors='coerce')
-homologacion.fecha.fechas_validas (cnmh,fecha_dia = 'fecha_ocur_dia', 
-                                   fecha_mes = 'fecha_ocur_mes',
-                                   fecha_anio = 'fecha_ocur_anio',
-                                   fecha = 'fecha_desaparicion_dtf',
-                                   fechat= 'fecha_desaparicion')
+homologacion.fecha.fechas_validas(cnmh, fecha_dia='fecha_ocur_dia',
+                                  fecha_mes='fecha_ocur_mes',
+                                  fecha_anio='fecha_ocur_anio',
+                                  fecha='fecha_desaparicion_dtf',
+                                  fechat='fecha_desaparicion')
 # Definir listas de meses y días
 meses = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11",
          "12"]
 dias = ["01", "02", "03", "04", "05", "06", "07", "08",
         "09"] + [str(i) for i in range(10, 32)]
 # Realizar las aserciones
-cnmh_ocur = cnmh[cnmh["fecha_ocur_anio"].astype(str).isin(map(str, range(1900, 2023))) &
-    cnmh["fecha_ocur_mes"].astype(str).isin(meses) &
-    cnmh["fecha_ocur_dia"].astype(str).isin(dias) ]
+cnmh_ocur = cnmh[cnmh["fecha_ocur_anio"].astype(str).isin(map(str,
+                                                              range(1900,
+                                                                    2023))) &
+                 cnmh["fecha_ocur_mes"].astype(str).isin(meses) &
+                 cnmh["fecha_ocur_dia"].astype(str).isin(dias)]
 
 
-cnmh_nocur = cnmh.merge(cnmh_ocur, on=['id_registro'], how='left', indicator=True)
+cnmh_nocur = cnmh.merge(cnmh_ocur, on=['id_registro'],
+                        how='left', indicator=True)
 cnmh_nocur = cnmh_nocur[cnmh_nocur['_merge'] == 'left_only']
 cnmh_nocur = cnmh_nocur.drop(columns=['_merge'])
 # presuntos responsables
@@ -271,20 +272,20 @@ pres_resp_columns = [
 cnmh['pres_resp_agentes_estatales'] = np.where(
     (cnmh['grupo'].str.contains("FUERZA PUBLICA") |
      cnmh['grupo'].str.contains("AGENTE DEL ESTADO") |
-     cnmh['grupo'].str.contains("GENTE EXTRANJERO") ), 1, 0)
+     cnmh['grupo'].str.contains("GENTE EXTRANJERO")), 1, 0)
 
 cnmh['pres_resp_grupos_posdesmov'] = np.where(
-    (cnmh['grupo'].str.contains("POSDESMOVILIZACION") ), 1, 0)
+    (cnmh['grupo'].str.contains("POSDESMOVILIZACION")), 1, 0)
 
 cnmh['pres_resp_paramilitares'] = np.where(
     (cnmh['grupo'].str.contains("AUTODEF") |
      cnmh['grupo'].str.contains("PARAMI") |
      cnmh['grupo'].str.contains("AUC") |
-     cnmh['grupo'].str.contains("PARAMILITAR") ), 1, 0)
+     cnmh['grupo'].str.contains("PARAMILITAR")), 1, 0)
 
 cnmh['pres_resp_guerr_eln'] = np.where(
     (cnmh['grupo'].str.contains("ELN") |
-     (cnmh['grupo'].str.contains("GUERRILLA") & 
+     (cnmh['grupo'].str.contains("GUERRILLA") &
       cnmh["descripcion_grupo"].str.contains("ELN"))), 1, 0)
 
 cnmh['pres_resp_guerr_farc'] = np.where(
@@ -295,8 +296,8 @@ cnmh['pres_resp_guerr_farc'] = np.where(
 
 cnmh['pres_resp_guerr_otra'] = np.where(
     ((cnmh['grupo'].str.contains("GRUPOS GUERRILLEROS") &
-      ~(cnmh["grupo"].str.contains("FARC|ELN")) & 
-      ~(cnmh["descripcion_grupo"].str.contains("FARC|ELN")))|
+      ~(cnmh["grupo"].str.contains("FARC|ELN")) &
+      ~(cnmh["descripcion_grupo"].str.contains("FARC|ELN"))) |
      (cnmh['grupo'].str.contains("GUERRILLA") &
       ~(cnmh["grupo"].str.contains("FARC|ELN")) &
       ~(cnmh['descripcion_grupo'].str.contains("FARC|ELN"))) |
@@ -304,8 +305,7 @@ cnmh['pres_resp_guerr_otra'] = np.where(
       ~(cnmh["descripcion_grupo"].str.contains("FARC|ELN"))) |
      (cnmh['grupo'].str.contains("EPL")) |
      (cnmh['grupo'].str.contains("GUERRILLA") &
-       cnmh['descripcion_grupo'].str.contains("EPL"))), 1, 0)
-     
+      cnmh['descripcion_grupo'].str.contains("EPL"))), 1, 0)
 # Calcular la columna "tmp" y actualizar "pres_resp_otro"
 # Revisar la sumatoria de las columnas con prefijo "pres_resp_"
 cnmh["tmp"] = cnmh[pres_resp_columns].sum(axis=1)
@@ -320,7 +320,7 @@ otros_hechos = ["CAPTURA", "CAPTURA - ACUSACION DE TERRORISMO",
                 "OCULTAMIENTO DE CADAVER", "OCULTAMIENTO DEL CADAVER"]
 
 cnmh["TH_DF"] = np.where((cnmh["tipo_desaparicion"].str.contains("DESAPARICION FORZADA|DESAPARICION") |
-                 cnmh["otro_hecho_simultaneo"].str.contains("DESAPARICIÓN|DESAPARECIO")), 1, 0)
+                          cnmh["otro_hecho_simultaneo"].str.contains("DESAPARICIÓN|DESAPARECIO")), 1, 0)
 
 cnmh["TH_SE"] = np.where((cnmh["otro_hecho_simultaneo"].str.contains(
     "SECUESTRO|SECUSTRO|RETENCIONES|RETENCION|DETENCION|DETENCION|RESTRICCION DE LA LIBERTAD|RESTRICCION DE MOVILIDAD INDIVIDUAL")), 1, 0)
@@ -353,29 +353,37 @@ cnmh["situacion_actual_des"] = cnmh["situacion_actual_victima"].replace({
 
 # nombres y apellidos
 
-cnmh['nombre_completo'] = cnmh['nombres_apellidos'].str.strip() 
+cnmh['nombre_completo'] = cnmh['nombres_apellidos'].str.strip()
 cnmh['nombre_completo'] = cnmh['nombre_completo'].fillna("")
 # Aplica la función a la columna "nombre_completo"
-cnmh[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']] = cnmh['nombre_completo'].apply(lambda x: pd.Series(homologacion.nombre_completo.limpiar_nombre_completo(x)))
+cnmh[['primer_nombre',
+      'segundo_nombre',
+      'primer_apellido',
+      'segundo_apellido']] = cnmh['nombre_completo'].apply(
+          lambda x: pd.Series(
+              homologacion.nombre_completo.limpiar_nombre_completo(x)))
 
-homologacion.nombres.nombres_validos (cnmh , primer_nombre = 'primer_nombre',
-                 segundo_nombre = 'segundo_nombre',
-                 primer_apellido = 'primer_apellido',
-                 segundo_apellido = 'segundo_apellido',
-                 nombre_completo = 'nombre_completo')
+homologacion.nombres.nombres_validos(cnmh, primer_nombre='primer_nombre',
+                                     segundo_nombre='segundo_nombre',
+                                     primer_apellido='primer_apellido',
+                                     segundo_apellido='segundo_apellido',
+                                     nombre_completo='nombre_completo')
 # Primero, asegúrate de que los valores de tipo_documento estén limpios
 cnmh['tipo_documento'] = cnmh['tipo_documento'].str.strip()
 
 # Documento
-# Eliminar espacios en blanco al principio y al final de la columna numero_documento
+# Eliminar espacios en blanco al principio y al final
+# de la columna numero_documento
 cnmh['documento'] = cnmh['numero_documento'].str.strip()
-homologacion.documento.documento_valida (cnmh, documento = 'documento')
+homologacion.documento.documento_valida(cnmh, documento='documento')
 # Crear una nueva columna para indicar si el documento contiene solo texto
-cnmh['documento_solo_cadena_texto'] = np.where(cnmh['documento'].str.isnumeric() == False, 1, 0)
+cnmh['documento_solo_cadena_texto'] = np.where(
+    (cnmh['documento'].str.isnumeric() == False), 1, 0)
 # Convertir la columna 'documento' a tipo numérico si contiene solo números
 # cnmh['documento'] = pd.to_numeric(cnmh['documento'], errors='coerce')
 # Aplicar las reglas de validación de la Registraduría
-cnmh['documento'] = np.where((cnmh['documento'].str.isnumeric() == False) , np.nan, cnmh['documento'])
+cnmh['documento'] = np.where((cnmh['documento'].str.isnumeric() == False),
+                             np.nan, cnmh['documento'])
 
 # implementación de las reglas de la registraduria
 # Columna: documento_CC_TI_no_numerico
@@ -386,16 +394,18 @@ cnmh['documento_CC_TI_no_numerico'] = np.where(
 # Columna: documento
 cnmh['documento'] = np.where(
     (cnmh['documento'].str.isalpha()) &
-    (cnmh['tipo_documento'].isin(['TARJETA DE IDENTIDAD', 'CEDULA DE CIUDADANIA'])), np.nan, cnmh['documento'])
+    (cnmh['tipo_documento'].isin(['TARJETA DE IDENTIDAD',
+                                  'CEDULA DE CIUDADANIA'])),
+    np.nan, cnmh['documento'])
 
 # Columna: documento_CC_TI_mayor1KM
 cnmh['documento_CC_TI_mayor1KM'] = np.where(
     (cnmh['documento'].str.len() >= 10) &
     (cnmh['documento'].str.isnumeric()) &
     (cnmh['documento'].astype(float) <= 1000000000) &
-    (cnmh['tipo_documento'].isin(['TARJETA DE IDENTIDAD', 'CEDULA DE CIUDADANIA'])), 1, 0)
+    (cnmh['tipo_documento'].isin(['TARJETA DE IDENTIDAD',
+                                  'CEDULA DE CIUDADANIA'])), 1, 0)
 
-                
 # Columna: documento_TI_10_11_caract
 cnmh['documento_TI_10_11_caract'] = np.where(
     (~cnmh['documento'].str.len().isin([10, 11])) &
@@ -403,7 +413,8 @@ cnmh['documento_TI_10_11_caract'] = np.where(
 # Columna: documento_TI_11_caract_fecha_nac
 cnmh['documento_TI_11_caract_fecha_nac'] = np.where(
     (cnmh['documento'].str.len() == 11) &
-    (~cnmh['documento'].str[:6].eq(cnmh['fecha_nacimiento'].dt.strftime('%y%m%d'))) &
+    (~cnmh['documento'].str[:6].eq(
+        cnmh['fecha_nacimiento'].dt.strftime('%y%m%d'))) &
     (cnmh['tipo_documento'] == 'TARJETA DE IDENTIDAD'), 1, 0)
 # Columna: documento_CC_hombre_consistente
 cnmh['documento_CC_hombre_consistente'] = np.where(
@@ -434,38 +445,40 @@ cnmh['documento_CC_hombre_consistente2'] = np.where(
 
 # Columna: documento_TI_mujer_consistente
 cnmh['documento_TI_mujer_consistente'] = np.where(
-    (~cnmh['documento'].str[9].isin([1,3,5,7,9])) &
+    (~cnmh['documento'].str[9].isin([1, 3, 5, 7, 9])) &
     (cnmh['documento'].str.len() == 11) &
     (cnmh['tipo_documento'] == 'TARJETA DE IDENTIDAD') &
     (cnmh['sexo'] == 'M'), 1, 0)
-            
+
 # Columna: documento_TI_hombre_consistente
 cnmh['documento_TI_hombre_consistente'] = np.where(
-    (~cnmh['documento'].str[9].isin([0,2,4,6,8])) &
+    (~cnmh['documento'].str[9].isin([0, 2, 4, 6, 8])) &
     (cnmh['documento'].str.len() == 11) &
     (cnmh['tipo_documento'] == 'TARJETA DE IDENTIDAD') &
     (cnmh['sexo'] == 'H'), 1, 0)
 # 583
 # Filtrar y seleccionar columnas relevantes
-resumen_documento = cnmh[cnmh.filter(like="documento_").sum(axis=1) > 0][["documento_CC_TI_no_numerico",
-                                                                          "documento_CC_TI_mayor1KM",
-                                                                          "documento_TI_10_11_caract",
-                                                                          "documento_TI_11_caract_fecha_nac",
-                                                                          "documento_CC_hombre_consistente",
-                                                                          "documento_CC_mujer_consistente",
-                                                                          "documento_CC_mujer_consistente2",
-                                                                          "documento_CC_hombre_consistente2",
-                                                                          "documento_TI_mujer_consistente",
-                                                                          "documento_TI_hombre_consistente",
-                                                                          "tipo_documento",
-                                                                          "numero_documento",
-                                                                          "documento",
-                                                                          "sexo",
-                                                                          "fecha_nacimiento"]]
+resumen_documento = cnmh[cnmh.filter(like="documento_").sum(axis=1) > 0]
+[["documento_CC_TI_no_numerico",
+  "documento_CC_TI_mayor1KM",
+  "documento_TI_10_11_caract",
+  "documento_TI_11_caract_fecha_nac",
+  "documento_CC_hombre_consistente",
+  "documento_CC_mujer_consistente",
+  "documento_CC_mujer_consistente2",
+  "documento_CC_hombre_consistente2",
+  "documento_TI_mujer_consistente",
+  "documento_TI_hombre_consistente",
+  "tipo_documento",
+  "numero_documento",
+  "documento",
+  "sexo",
+  "fecha_nacimiento"]]
 
 # Seleccionar columnas que comienzan con "documento_", y algunas otras columnas
 columnas_seleccionadas = resumen_documento.filter(like="documento_").columns.tolist(
-) + ["tipo_documento", "numero_documento", "documento", "sexo", "fecha_nacimiento"]
+) + ["tipo_documento",
+     "numero_documento", "documento", "sexo", "fecha_nacimiento"]
 resumen_documento_seleccionado = resumen_documento[columnas_seleccionadas]
 # Guardar el DataFrame resultante en un archivo CSV
 resumen_documento_seleccionado.to_csv(
@@ -485,7 +498,7 @@ cnmh['sexo'] = np.where(cnmh['sexo'] == "S", np.nan,
                                  cnmh['sexo']))))
 # Pertenencia étnica
 cnmh.rename(columns={'etnia': 'iden_pertenenciaetnica'}, inplace=True)
-homologacion.etnia.etnia_valida (cnmh, etnia = 'iden_pertenenciaetnica')
+homologacion.etnia.etnia_valida(cnmh, etnia='iden_pertenenciaetnica')
 # fecha de nacimiento
 # Copiar la columna fecha_nacimiento a fecha_nacimiento_original
 cnmh['fecha_nacimiento_original'] = cnmh['fecha_nacimiento']
@@ -497,15 +510,16 @@ cnmh['mes_nacimiento'] = pd.to_datetime(cnmh['fecha_nacimiento_original'],
                                         format="%Y-%m-%d").dt.strftime("%m")
 cnmh['dia_nacimiento'] = pd.to_datetime(cnmh['fecha_nacimiento_original'],
                                         format="%Y-%m-%d").dt.strftime("%d")
-cnmh['anio_nacimiento'] = pd.to_numeric(cnmh['anio_nacimiento'], errors='coerce')
+cnmh['anio_nacimiento'] = pd.to_numeric(cnmh['anio_nacimiento'],
+                                        errors='coerce')
 cnmh['mes_nacimiento'] = pd.to_numeric(cnmh['mes_nacimiento'], errors='coerce')
 cnmh['dia_nacimiento'] = pd.to_numeric(cnmh['dia_nacimiento'], errors='coerce')
 
-homologacion.fecha.fechas_validas (cnmh,fecha_dia = 'dia_nacimiento', 
-                                   fecha_mes = 'mes_nacimiento',
-                                   fecha_anio = 'anio_nacimiento',
-                                   fecha = 'fecha_nacimiento_dtf',
-                                   fechat= 'fecha_nacimiento')
+homologacion.fecha.fechas_validas(cnmh, fecha_dia='dia_nacimiento',
+                                  fecha_mes='mes_nacimiento',
+                                  fecha_anio='anio_nacimiento',
+                                  fecha='fecha_nacimiento_dtf',
+                                  fechat='fecha_nacimiento')
 
 # Verificar que los valores de anio_nacimiento, mes_nacimiento y
 # dia_nacimiento estén en conjuntos válidos
@@ -522,14 +536,17 @@ cnmh['dia_nacimiento'] = np.where(cnmh['dia_nacimiento'].isin(valid_days),
                                   cnmh['dia_nacimiento'], np.nan)
 
 # Calcular la edad
-cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len()<1), "0", cnmh['fecha_ocur_anio'])
-cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len()<1), "0", cnmh['anio_nacimiento'])
+cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len() < 1),
+                                   "0", cnmh['fecha_ocur_anio'])
+cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len() < 1),
+                                   "0", cnmh['anio_nacimiento'])
 
 cnmh['edad'] = np.where(
     (cnmh['fecha_ocur_anio'].isna() | cnmh['anio_nacimiento'].isna()),
     np.nan,
     np.where(
-        cnmh['fecha_ocur_anio'].astype(float) <= cnmh['anio_nacimiento'].astype(float),
+        cnmh['fecha_ocur_anio'].astype(float) <=
+        cnmh['anio_nacimiento'].astype(float),
         np.nan,
         cnmh['fecha_ocur_anio'].astype(float) -
         cnmh['anio_nacimiento'].astype(float)))
@@ -538,18 +555,24 @@ cnmh['edad'] = np.where(cnmh['edad'] > 100, np.nan, cnmh['edad'])
 
 # Verificar que la edad esté dentro del rango [1, 100]
 cnmh['edad'] = np.where(
-    (cnmh['edad'].between(
-        1,
-        100,
-        inclusive=True) | cnmh['edad'].isna()),
+    (cnmh['edad'].between(1, 100, inclusive=True) |
+     cnmh['edad'].isna()),
     cnmh['edad'],
     np.nan)
 
-cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len()<1), "0", cnmh['fecha_ocur_anio'])
-cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len()<1), "0", cnmh['anio_nacimiento'])
+cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len() == 1),
+                                   "", cnmh['fecha_ocur_anio'])
+cnmh['anio_nacimiento'] = np.where((cnmh['anio_nacimiento'].str.len() == 1),
+                                   "", cnmh['anio_nacimiento'])
+cnmh_r = cnmh[
+    cnmh['codigo_unico_fuente'] == '291850_MA200212230001_330710'].copy()
+# 265357_DF200304150014_286632
+# 291850_MA200212230001_330710
 
-cols_to_clean = ['segundo_nombre','segundo_apellido','documento',
-                 'descripcion_relato','situacion_actual_des']
+cols_to_clean = ['segundo_nombre', 'segundo_apellido', 'documento',
+                 'descripcion_relato', 'situacion_actual_des', 'sexo',
+                 'codigo_dane_departamento', 'departamento_ocurrencia',
+                 'codigo_dane_municipio', 'municipio_ocurrencia']
 for col in cols_to_clean:
     cnmh[col] = cnmh[col].fillna("")
 # Identificación de filas únicas
@@ -607,9 +630,12 @@ if len(cnmh) != len(cnmh['codigo_unico_fuente'].unique()):
 
 # Filtrar registros con nombres y apellidos no nulos, y al menos uno de
 # los otros campos no nulos
-cnmh_ident = cnmh[(~cnmh['primer_nombre'].isna() | ~cnmh['segundo_nombre'].isna()) &
-                  (~cnmh['primer_apellido'].isna() | ~cnmh['segundo_apellido'].isna()) &
-                  (~cnmh['documento'].isna() | ~cnmh['fecha_ocur_anio'].isna() |
+cnmh_ident = cnmh[(~cnmh['primer_nombre'].isna() |
+                   ~cnmh['segundo_nombre'].isna()) &
+                  (~cnmh['primer_apellido'].isna() |
+                   ~cnmh['segundo_apellido'].isna()) &
+                  (~cnmh['documento'].isna() |
+                   ~cnmh['fecha_ocur_anio'].isna() |
                    ~cnmh['departamento_ocurrencia'].isna())]
 # Filtrar registros que no cumplen con los criterios anteriores
 cnmh_no_ident = cnmh[~cnmh['id_registro'].isin(cnmh_ident['id_registro'])]
@@ -637,19 +663,16 @@ log = {
     'fecha_inicio': str(fecha_inicio),
     'fecha_fin': str(fecha_fin),
     'tiempo_ejecucion': str(fecha_fin - fecha_inicio),
-    'n_casos': n_casos,  # Asegúrate de definir n_casos antes de esta línea
-    'n_personas': n_personas,  # Asegúrate de definir n_personas antes de esta línea
-    # Asegúrate de definir n_casos_sin_personas antes de esta línea
+    'n_casos': n_casos,
+    'n_personas': n_personas,
     'n_casos_sin_personas': n_casos_sin_personas,
     'filas_iniciales_cnmh': nrow_cnmh,
     'filas_final_cnmh': nrow_cnmh,
     'filas_cnmh_ident': nrow_cnmh_ident,
     'filas_cnmh_no_ident': nrow_cnmh_no_ident,
-    # Asegúrate de definir n_duplicados antes de esta línea
     'n_duplicados': n_duplicados,
-    # Asegúrate de definir n_indirectas antes de esta línea
     'n_indirectas': n_indirectas,
-    'n_juridicas': n_juridicas  # Asegúrate de definir n_juridicas antes de esta línea
+    'n_juridicas': n_juridicas
 }
 
 # Guardar el log en un archivo YAML

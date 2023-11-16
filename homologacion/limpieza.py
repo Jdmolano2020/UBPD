@@ -1,9 +1,11 @@
 import unicodedata
 import re
 
+
 def normalize_text(text):
     # Eliminar acentos
-    text = ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+    text = ''.join(c for c in unicodedata.normalize(
+        'NFD', text) if unicodedata.category(c) != 'Mn')
     # Convertir a mayúsculas
     text = text.upper()
     # Eliminar espacios al inicio y al final

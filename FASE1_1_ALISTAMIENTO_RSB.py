@@ -1,3 +1,4 @@
+por aqui paso JDMC
 import os
 import json
 import time

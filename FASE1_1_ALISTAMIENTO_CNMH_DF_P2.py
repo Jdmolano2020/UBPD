@@ -319,10 +319,14 @@ otros_hechos = ["CAPTURA", "CAPTURA - ACUSACION DE TERRORISMO",
                 "OCULTAMIENTO DE CADAVER",
                 "OCULTAMIENTO DE CADAVER", "OCULTAMIENTO DEL CADAVER"]
 
-cnmh["TH_DF"] = np.where((cnmh["tipo_desaparicion"].str.contains("DESAPARICION FORZADA|DESAPARICION") |
-                          cnmh["otro_hecho_simultaneo"].str.contains("DESAPARICIÓN|DESAPARECIO")), 1, 0)
+cnmh["TH_DF"] = np.where(
+    (cnmh["tipo_desaparicion"].str.contains(
+        "DESAPARICION FORZADA|DESAPARICION") |
+        cnmh["otro_hecho_simultaneo"].str.contains(
+            "DESAPARICION|DESAPARECIO")), 1, 0)
 
-cnmh["TH_SE"] = np.where((cnmh["otro_hecho_simultaneo"].str.contains(
+cnmh["TH_SE"] = np.where(
+    (cnmh["otro_hecho_simultaneo"].str.contains(
     "SECUESTRO|SECUSTRO|RETENCIONES|RETENCION|DETENCION|DETENCION|RESTRICCION DE LA LIBERTAD|RESTRICCION DE MOVILIDAD INDIVIDUAL")), 1, 0)
 
 cnmh["TH_RU"] = np.where((cnmh["otro_hecho_simultaneo"].str.contains(
@@ -522,19 +526,6 @@ homologacion.fecha.fechas_validas(cnmh, fecha_dia='dia_nacimiento',
                                   fechat='fecha_nacimiento')
 
 # Verificar que los valores de anio_nacimiento, mes_nacimiento y
-# dia_nacimiento estén en conjuntos válidos
-valid_years = list(map(str, range(1900, 2023)))
-valid_months = list(map(str, range(1, 13)))
-valid_days = list(map(str, range(1, 32)))
-
-cnmh['anio_nacimiento'] = np.where(cnmh['anio_nacimiento'].isin(valid_years),
-                                   cnmh['anio_nacimiento'], np.nan)
-
-cnmh['mes_nacimiento'] = np.where(cnmh['mes_nacimiento'].isin(valid_months),
-                                  cnmh['mes_nacimiento'], np.nan)
-cnmh['dia_nacimiento'] = np.where(cnmh['dia_nacimiento'].isin(valid_days),
-                                  cnmh['dia_nacimiento'], np.nan)
-
 # Calcular la edad
 cnmh['fecha_ocur_anio'] = np.where((cnmh['fecha_ocur_anio'].str.len() < 1),
                                    "0", cnmh['fecha_ocur_anio'])

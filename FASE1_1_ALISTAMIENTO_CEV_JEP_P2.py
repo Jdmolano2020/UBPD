@@ -106,16 +106,16 @@ variables_a_mantener = [
 ]
 # Definir una lista de valores a reemplazar
 na_values = {
-    "NO APLICA": np.nan,
-    "NULL": np.nan,
-    "ND": np.nan,
-    "NA": np.nan,
-    "NR": np.nan,
-    "SIN INFORMACION": np.nan,
-    "NO SABE": np.nan,
-    "DESCONOCIDO": np.nan,
-    "POR DEFINIR": np.nan,
-    "SIN ESTABLECER": np.nan
+    "NO APLICA": None,
+    "NULL": None,
+    "ND": None,
+    "NA": None,
+    "NR": None,
+    "SIN INFORMACION": None,
+    "NO SABE": None,
+    "DESCONOCIDO": None,
+    "POR DEFINIR": None,
+    "SIN ESTABLECER": None,
 }
 
 cols_a_normalizar = ['sexo', 'etnia', 'nombre_1', 'nombre_apellido_completo',
@@ -218,6 +218,8 @@ df['iden_pertenenciaetnica'] = df['etnia']
 homologacion.etnia.etnia_valida(df, etnia='iden_pertenenciaetnica')
 # 237
 # Fecha de nacimiento
+df_r = df[
+    df['codigo_unico_fuente'] == '0003c22c6df379bf4f780d84230415100cf99e59']
 
 df['anio_nacimiento'] = pd.to_numeric(df['yy_nacimiento'], errors='coerce')
 df['mes_nacimiento'] = pd.to_numeric(df['mm_nacimiento'], errors='coerce')

@@ -60,7 +60,7 @@ with engine.connect() as connection:
 # Guardar en archivo CSV
     csv_file_path = os.path.join(DIRECTORY_PATH, "fuentes secundarias/V_UBPD_RSB.csv")
     df.to_csv(csv_file_path, index=False, encoding='utf-8')
-
+   df.to_csv(csv_file_path, index=False, encoding='utf-8')
 # Cargar el archivo de datos en un DataFrame y convertir los nombres de las columnas a minúsculas
 #df = pd.read_csv("fuentes secundarias/V_UBPD_RSB.csv")
 #df.columns = df.columns.str.lower()

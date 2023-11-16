@@ -1,4 +1,3 @@
-por aqui paso JDMC
 import os
 from sqlalchemy import create_engine, text
 import pandas as pd

@@ -110,6 +110,7 @@ na_values = {
     "NULL": None,
     "ND": None,
     "NA": None,
+    "NAN": None,
     "NR": None,
     "SIN INFORMACION": None,
     "NO SABE": None,
@@ -179,7 +180,7 @@ df['pres_resp_guerr_otra'] = np.where(((df['perp_guerrilla'] == 1.0) &
 df['TH_DF'] = df['tipohecho'].str.contains('DESAPARICION').astype(int)
 df['TH_SE'] = df['tipohecho'].str.contains('SECUESTRO').astype(int)
 df['TH_RU'] = df['tipohecho'].str.contains('RECLUTAMIENTO').astype(int)
-df.drop(['tipohecho'], axis=1, inplace=True)
+# df.drop(['tipohecho'], axis=1, inplace=True)
 # Relato
 df.rename(columns={'narrativo_hechos': 'descripcion_relato'}, inplace=True)
 df['descripcion_relato'] = df['descripcion_relato'].str.upper()
@@ -337,6 +338,29 @@ columnas_a_mantener = [
     'in_cceeu', 'in_caribe', 'rni', 'non_miss']
 # Filtrar las columnas que deseas mantener en el DataFrame
 df = df[columnas_a_mantener]
+
+columnas_orden = ['tabla_origen', 'codigo_unico_fuente',
+                  'nombre_completo', 'primer_nombre',
+                  'segundo_nombre', 'primer_apellido',
+                  'segundo_apellido', 'documento', 'sexo',
+                  'iden_pertenenciaetnica', 'fecha_nacimiento',
+                  'anio_nacimiento', 'mes_nacimiento',
+                  'dia_nacimiento', 'edad', 'fecha_desaparicion',
+                  'fecha_ocur_anio', 'fecha_ocur_mes',
+                  'fecha_ocur_dia', 'pais_ocurrencia',
+                  'codigo_dane_departamento',
+                  'departamento_ocurrencia',
+                  'codigo_dane_municipio',
+                  'municipio_ocurrencia',
+                  'descripcion_relato']
+
+# Ordenar el DataFrame según las columnas especificadas
+df = df.sort_values(by=columnas_orden)
+
+cols_to_clean = ['descripcion_relato']
+for col in cols_to_clean:
+    df[col] = df[col].fillna("")
+
 # Crear una columna 'nonmiss' que cuente la cantidad de valores no nulos
 # en las columnas especificadas
 columnas_no_nulas = [

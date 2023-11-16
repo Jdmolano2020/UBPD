@@ -108,6 +108,12 @@ for col in cols_a_normalizar:
     df[col].replace(["NO APLICA", "NULL", "ND", "NA", "NR",
                      "SIN INFORMACION", "NO SABE", "DESCONOCIDO",
                      "POR DEFINIR", "SIN ESTABLECER"], "", inplace=True)
+df.sort_values(by=['nombre_1', 'nombre_2', 'apellido_1', 'apellido_2',
+                   'nombre_apellido_completo', 'cedula', 'otro_documento',
+                   'edad', 'yy_nacimiento', 'mm_nacimiento',
+                   'dd_nacimiento', 'sexo', 'etnia', 'dept_code_hecho',
+                   'muni_code_hecho', 'yy_hecho', 'ymd_hecho',
+                   'tipohecho', 'match_group_id'], inplace=True)
 # 3. Homologación de estructura, formato y contenido
 df['pais_ocurrencia'] = "COLOMBIA"
 df['codigo_dane_departamento'] = df['dept_code_hecho'].apply(

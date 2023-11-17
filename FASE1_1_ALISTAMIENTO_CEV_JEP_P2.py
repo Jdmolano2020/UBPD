@@ -109,8 +109,7 @@ na_values = {
 }
 
 cols_a_normalizar = ['sexo', 'etnia', 'nombre_1', 'nombre_apellido_completo',
-                     'nombre_2', 'apellido_1', 'apellido_2', 'tipohecho',
-                     'cedula']
+                     'nombre_2', 'apellido_1', 'apellido_2', 'cedula']
 
 df[cols_a_normalizar] = df[cols_a_normalizar].apply(clean_text)
 df[cols_a_normalizar] = df[cols_a_normalizar].replace(na_values)
@@ -168,6 +167,16 @@ df['pres_resp_guerr_otra'] = np.where(((df['perp_guerrilla'] == 1.0) &
                                       1, 0)
 
 # Tipo de hecho
+df['tipohecho'].replace(
+    {"DesapariciÃ³n - Secuestro - Reclutamiento": "DESAPARICION - SECUESTRO - RECLUTAMIENTO",
+     "DesapariciÃ³n - Secuestro":  "DESAPARICION - SECUESTRO",
+     "DesapariciÃ³n": "DESAPARICION",
+     "DesapariciÃ³n - Reclutamiento": "DESAPARICION - SECUESTRO - RECLUTAMIENTO"
+     }, inplace=True)
+
+
+
+
 df['TH_DF'] = df['tipohecho'].str.contains('DESAPARICION').astype(int)
 df['TH_SE'] = df['tipohecho'].str.contains('SECUESTRO').astype(int)
 df['TH_RU'] = df['tipohecho'].str.contains('RECLUTAMIENTO').astype(int)

@@ -53,6 +53,8 @@ engine = create_engine(db_url)
 query = "EXECUTE [dbo].[CONSULTA_V_JEP_CEV]"
 
 df = pd.read_sql_query(query, engine)
+nrow_df = len(df)
+print("Registros despues cargue fuente: ", nrow_df)
 # Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
 if parametro_cantidad != "":
     limite = int(parametro_cantidad)
@@ -76,6 +78,9 @@ df = pd.read_csv(archivo_csv)
 df.columns = df.columns.str.lower()
 df['duplicates_reg'] = df.duplicated()
 df = df[~df['duplicates_reg']]
+nrow_df = len(df)
+print("Registros despues eliminar duplicados: ", nrow_df)
+
 # Más manipulación de datos (Omitir esta sección en Python)
 # No requiere ordenar el datafrane
 # Origen de los datos
@@ -88,22 +93,6 @@ df.rename(columns={'match_group_id': 'codigo_unico_fuente'}, inplace=True)
 df.columns = df.columns.str.lower()
 
 # 1. Seleccionar variables que serán homologadas para la integración
-variables_a_mantener = [
-    'nombre_1', 'nombre_2', 'apellido_1', 'apellido_2',
-    'nombre_apellido_completo', 'cedula', 'otro_documento', 'edad',
-    'yy_nacimiento', 'mm_nacimiento', 'dd_nacimiento', 'sexo', 'edad',
-    'yy_nacimiento', 'mm_nacimiento', 'dd_nacimiento', 'etnia',
-    'dept_code_hecho', 'muni_code_hecho', 'yy_hecho', 'ymd_hecho',
-    'tipohecho', 'perp_agentes_estatales', 'perp_grupos_posdesmv_paramilitar',
-    'perp_paramilitares', 'perp_guerrilla_eln', 'perp_guerrilla_farc',
-    'perp_guerrilla_otra', 'perp_otro', 'codigo_unico_fuente',
-    'in_ruv', 'in_vp_das', 'in_urt', 'in_uph', 'in_up', 'in_sindicalistas',
-    'in_sijyp', 'in_ponal', 'in_pgn', 'in_personeria', 'in_paislibre',
-    'in_onic', 'in_oacp', 'in_mindefensa', 'in_jmp', 'in_inml', 'in_icbf',
-    'in_forjandofuturos', 'in_fgn', 'in_ejercito', 'in_credhos', 'in_conase',
-    'in_df', 'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
-    'in_cceeu', 'in_caribe', 'narrativo_hechos',  'tabla_origen'
-]
 # Definir una lista de valores a reemplazar
 na_values = {
     "NO APLICA": None,
@@ -144,6 +133,8 @@ df = pd.merge(df, dane, how='left',
                        'codigo_dane_municipio'],
               right_on=['codigo_dane_departamento', 'codigo_dane_municipio'])
 
+nrow_df = len(df)
+print("Registros despues cruzar divipola: ", nrow_df)
 df.rename(columns={'departamento': 'departamento_ocurrencia'}, inplace=True)
 
 # fecha de ocurrencia
@@ -313,9 +304,65 @@ sum_g = df['g'].sum()
 df.drop(columns=['g'], inplace=True)
 # Eliminar registros donde 'rni_' es igual a 'N'
 df = df[df['rni_'] != df['N']]
+nrow_df = len(df)
+print("Registros despues eliminar RNI: ", nrow_df)
 # 300
 # 5. Identificación de filas únicas
 # Crear una lista con las columnas que deseas mantener
+df['campo_novacios_p1'] = np.where(
+    ((df['nombre_completo'].notna()) &
+     (df['nombre_completo'].str.len() > 0)), 1100, 0)
+
+df['campo_novacios_p2'] = np.where(
+    ((df['primer_nombre'].notna()) &
+     (df['primer_nombre'].str.len() > 0)), 1000, 0)
+
+df['campo_novacios_p3'] = np.where(
+    ((df['segundo_nombre'].notna()) &
+     (df['segundo_nombre'].str.len() > 0)), 700, 0)
+
+df['campo_novacios_p4'] = np.where(
+    ((df['primer_apellido'].notna()) &
+     (df['primer_apellido'].str.len() > 0)), 900, 0)
+
+df['campo_novacios_p5'] = np.where(
+    ((df['segundo_apellido'].notna()) &
+     (df['segundo_apellido'].str.len() > 0)), 600, 0)
+
+df['campo_novacios_p6'] = np.where(
+    ((df['documento'].notna()) &
+     (df['documento'].str.len() > 0)), 800, 0)
+
+df['campo_novacios_p7'] = np.where(
+    ((df['fecha_nacimiento'].notna()) &
+     (df['fecha_nacimiento'].str.len() > 0)), 500, 0)
+
+df['campo_novacios_p8'] = np.where(
+    ((df['fecha_desaparicion'].notna()) &
+     (df['fecha_desaparicion'].str.len() > 0)), 400, 0)
+
+df['campo_novacios_p9'] = np.where(
+    ((df['sexo'].notna()) &
+     (df['sexo'].str.len() > 0)), 300, 0)
+
+df['campo_novacios_p10'] = np.where(
+    ((df['edad'].notna()) &
+     (df['edad'].astype(str).str.len() > 0)), 200, 0)
+
+df['campo_novacios_p11'] = np.where(
+    ((df['iden_pertenenciaetnica'].notna()) &
+     (df['iden_pertenenciaetnica'].str.len() > 0)), 100, 0)
+
+cols_to_sum = ['campo_novacios_p1', 'campo_novacios_p2',
+               'campo_novacios_p3', 'campo_novacios_p4',
+               'campo_novacios_p5', 'campo_novacios_p6',
+               'campo_novacios_p7', 'campo_novacios_p8',
+               'campo_novacios_p9', 'campo_novacios_p10',
+               'campo_novacios_p11']
+df['campo_novacios'] = 0
+for col in cols_to_sum:
+    df['campo_novacios'] = df['campo_novacios'] + df[col]
+
 columnas_a_mantener = [
     'tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre',
     'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'documento',
@@ -335,29 +382,11 @@ columnas_a_mantener = [
     'in_onic', 'in_oacp', 'in_mindefensa', 'in_jmp', 'in_inml', 'in_icbf',
     'in_forjandofuturos', 'in_fgn', 'in_ejercito', 'in_credhos', 'in_conase',
     'in_comunidades_negras', 'in_cev', 'in_cecoin', 'in_ccj',
-    'in_cceeu', 'in_caribe', 'rni', 'non_miss']
+    'in_cceeu', 'in_caribe', 'rni', 'non_miss', 'campo_novacios']
 # Filtrar las columnas que deseas mantener en el DataFrame
 df = df[columnas_a_mantener]
 
-columnas_orden = ['tabla_origen', 'codigo_unico_fuente',
-                  'nombre_completo', 'primer_nombre',
-                  'segundo_nombre', 'primer_apellido',
-                  'segundo_apellido', 'documento', 'sexo',
-                  'iden_pertenenciaetnica', 'fecha_nacimiento',
-                  'anio_nacimiento', 'mes_nacimiento',
-                  'dia_nacimiento', 'edad', 'fecha_desaparicion',
-                  'fecha_ocur_anio', 'fecha_ocur_mes',
-                  'fecha_ocur_dia', 'pais_ocurrencia',
-                  'codigo_dane_departamento',
-                  'departamento_ocurrencia',
-                  'codigo_dane_municipio',
-                  'municipio_ocurrencia',
-                  'descripcion_relato']
-
-# Ordenar el DataFrame según las columnas especificadas
-df = df.sort_values(by=columnas_orden)
-
-cols_to_clean = ['descripcion_relato']
+cols_to_clean = ['descripcion_relato', 'sexo', 'municipio']
 for col in cols_to_clean:
     df[col] = df[col].fillna("")
 
@@ -381,9 +410,16 @@ columnas_no_nulas = [
     'in_cceeu', 'in_caribe']
 df['nonmiss'] = df[columnas_no_nulas].count(axis=1)
 # Ordenar el DataFrame
-df = df.sort_values(by=['codigo_unico_fuente', 'rni', 'documento', 'nonmiss'])
+df = df.sort_values(by=['codigo_unico_fuente', 'campo_novacios', 'rni',
+                        'nombre_completo',
+                        'nonmiss'], ascending=False)
+nrow_df = len(df)
+print("Registros despues ordenar: ", nrow_df)
 # Mantener solo la primera fila de cada grupo 'codigo_unico_fuente'
 df = df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first')
+nrow_df = len(df)
+print("Registros despues eliminar duplicados codigo_unico_fuente: ", nrow_df)
+
 # Eliminar columnas temporales
 # #df.drop(columns=['rni*', 'nonmiss'], inplace=True)
 df.to_csv("archivos depurados/BD_CEV_JEP.csv", index=False)

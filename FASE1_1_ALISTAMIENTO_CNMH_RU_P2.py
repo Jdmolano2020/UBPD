@@ -579,6 +579,10 @@ n_indirectas = n_2 - len(cnmh)
 n_3 = len(cnmh)
 cnmh = cnmh.dropna(subset=["nombre_completo"])
 n_juridicas = n_3 - len(cnmh)
+
+cols_to_clean = ['edad']
+for col in cols_to_clean:
+    cnmh[col] = cnmh[col].fillna("")
 # Crear tabla de datos únicamente con los campos requeridos
 campos_requeridos = ['id_registro', 'tabla_origen', 'codigo_unico_fuente',
                      'nombre_completo', 'primer_nombre', 'segundo_nombre',
@@ -614,11 +618,11 @@ db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base
 engine = create_engine(db_url)
 
 # Escribir el DataFrame cnmh_ident en la tabla orq_salida.CNMH_RU
-cnmh_ident.to_sql(name='CNMH_RU_jdmc', con=engine, if_exists='replace',
+cnmh_ident.to_sql(name='CNMH_RU', con=engine, if_exists='replace',
                   index=False)
 
 # Escribir el DataFrame cnmh_no_ident en la tabla orq_salida.CNMH_RU_PNI
-cnmh_no_ident.to_sql(name='CNMH_RU_PNI_jdmc', con=engine,
+cnmh_no_ident.to_sql(name='CNMH_RU_PNI', con=engine,
                      if_exists='replace', index=False)
 
 # Registro de resultados

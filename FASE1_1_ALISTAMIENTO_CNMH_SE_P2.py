@@ -545,7 +545,7 @@ cnmh['edad'] = np.where(
     (cnmh['edad'] > 100) | (cnmh['edad'] < 1), np.nan, cnmh['edad'])
 # Asegura que la columna 'edad' esté dentro del rango 1-100
 # (permitiendo valores NaN)
-cols_to_clean = ['situacion_actual_des', 'descripcion_relato',
+cols_to_clean = ['situacion_actual_des', 'descripcion_relato', 'edad',
                  'codigo_dane_departamento', 'departamento_ocurrencia',
                  'codigo_dane_municipio', 'municipio_ocurrencia']
 for col in cols_to_clean:

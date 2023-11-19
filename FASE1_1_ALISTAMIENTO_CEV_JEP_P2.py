@@ -162,6 +162,13 @@ df.rename(
         'perp_otro': 'pres_resp_otro'},
     inplace=True)
 
+cols_to_clean = ['pres_resp_agentes_estatales', 'pres_resp_grupos_posdesmov',
+                 'pres_resp_paramilitares',
+                 'pres_resp_guerr_eln', 'pres_resp_guerr_farc',
+                 'pres_resp_guerr_otra', 'pres_resp_otro']
+for col in cols_to_clean:
+    df[col] = df[col].fillna("0")
+
 df['pres_resp_guerr_otra'] = np.where(((df['perp_guerrilla'] == 1.0) &
                                        (df['pres_resp_guerr_otra'] == 0.0)),
                                       1, 0)
@@ -173,9 +180,6 @@ df['tipohecho'].replace(
      "DesapariciÃ³n": "DESAPARICION",
      "DesapariciÃ³n - Reclutamiento": "DESAPARICION - SECUESTRO - RECLUTAMIENTO"
      }, inplace=True)
-
-
-
 
 df['TH_DF'] = df['tipohecho'].str.contains('DESAPARICION').astype(int)
 df['TH_SE'] = df['tipohecho'].str.contains('SECUESTRO').astype(int)
@@ -205,8 +209,6 @@ homologacion.nombres.nombres_validos(df, primer_nombre='primer_nombre',
                                      segundo_apellido='segundo_apellido',
                                      nombre_completo='nombre_completo')
 # Documento
-# Eliminar espacios en blanco al principio
-# y al final de la columna numero_documento
 df['cedula'] = df['cedula'].astype(str)
 df['documento'] = df['cedula'].fillna('')
 df['documento'] = df['documento'].str.strip()
@@ -217,7 +219,6 @@ df['sexo'].replace({'OTRO': 'INTERSEX'}, inplace=True)
 df['iden_pertenenciaetnica'] = df['etnia']
 # Pertenencia étnica
 homologacion.etnia.etnia_valida(df, etnia='iden_pertenenciaetnica')
-# 237
 # Fecha de nacimiento
 df_r = df[
     df['codigo_unico_fuente'] == '0003c22c6df379bf4f780d84230415100cf99e59']
@@ -272,9 +273,6 @@ columnas_fecha = ['anio_nacimiento', 'mes_nacimiento', 'dia_nacimiento',
                   'fecha_nacimiento']
 for columna in columnas_fecha:
     df.loc[df['inconsistencia_fechas'] != 0, columna] = ''
-# Eliminar la columna 'inconsistencia_fechas' si ya no es necesaria
-# #df.drop(columns=['inconsistencia_fechas'], inplace=True)
-# 277
 # 4. Identificación y eliminación de Registros No Identificados
 # Crear una columna 'non_miss' que cuente la cantidad de valores no nulos
 # en las columnas especificadas
@@ -296,7 +294,6 @@ conteo = df["rni"].value_counts()
 df['rni_'] = df.groupby('codigo_unico_fuente')['rni'].transform('sum')
 df['N'] = df.groupby('codigo_unico_fuente').cumcount() + 1
 
-# 287
 # Personas no identificadas que podrían integrarse posteriormente
 # al Universo mediante una comparación de nombres
 # Filtrar las filas donde 'rni_' es igual a 'N'
@@ -318,6 +315,7 @@ print("Registros despues eliminar RNI: ", nrow_df)
 # 300
 # 5. Identificación de filas únicas
 # Crear una lista con las columnas que deseas mantener
+# Ranking para seleccionar el registro con información mas completa
 df['campo_novacios_p1'] = np.where(
     ((df['nombre_completo'].notna()) &
      (df['nombre_completo'].str.len() > 0)), 1100, 0)
@@ -420,8 +418,7 @@ columnas_no_nulas = [
 df['nonmiss'] = df[columnas_no_nulas].count(axis=1)
 # Ordenar el DataFrame
 df = df.sort_values(by=['codigo_unico_fuente', 'campo_novacios', 'rni',
-                        'nombre_completo',
-                        'nonmiss'], ascending=False)
+                        'nombre_completo', 'nonmiss'], ascending=False)
 nrow_df = len(df)
 print("Registros despues ordenar: ", nrow_df)
 # Mantener solo la primera fila de cada grupo 'codigo_unico_fuente'

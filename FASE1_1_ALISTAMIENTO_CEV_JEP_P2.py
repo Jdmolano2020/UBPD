@@ -55,6 +55,7 @@ query = "EXECUTE [dbo].[CONSULTA_V_JEP_CEV]"
 df = pd.read_sql_query(query, engine)
 nrow_df = len(df)
 print("Registros despues cargue fuente: ", nrow_df)
+
 # Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
 if parametro_cantidad != "":
     limite = int(parametro_cantidad)
@@ -74,7 +75,9 @@ df.to_csv(archivo_csv, index=False)
 # #        f'unicode translate "{archivo_a_traducir}" "{archivo_utf8}" transutf8')
 # #    os.remove(archivo_a_traducir)
 # Crear un identificador de registro
-df = pd.read_csv(archivo_csv)
+# df = pd.read_csv(archivo_csv)
+df_r = df[
+    df['codigo_unico_fuente'] == '0445fb3692fc29c91170b5897286ddc45f8b6ae9']
 df.columns = df.columns.str.lower()
 df['duplicates_reg'] = df.duplicated()
 df = df[~df['duplicates_reg']]
@@ -106,6 +109,7 @@ na_values = {
     "DESCONOCIDO": None,
     "POR DEFINIR": None,
     "SIN ESTABLECER": None,
+    "NONE": None,
 }
 
 cols_a_normalizar = ['sexo', 'etnia', 'nombre_1', 'nombre_apellido_completo',
@@ -113,7 +117,8 @@ cols_a_normalizar = ['sexo', 'etnia', 'nombre_1', 'nombre_apellido_completo',
 
 df[cols_a_normalizar] = df[cols_a_normalizar].apply(clean_text)
 df[cols_a_normalizar] = df[cols_a_normalizar].replace(na_values)
-
+# df_r = df[
+#     df['codigo_unico_fuente'] == '0445fb3692fc29c91170b5897286ddc45f8b6ae9']
 # 3. Homologación de estructura, formato y contenido
 df['pais_ocurrencia'] = "COLOMBIA"
 df['codigo_dane_departamento'] = df['dept_code_hecho'].apply(
@@ -209,6 +214,8 @@ homologacion.nombres.nombres_validos(df, primer_nombre='primer_nombre',
                                      segundo_apellido='segundo_apellido',
                                      nombre_completo='nombre_completo')
 # Documento
+df_r = df[
+    df['codigo_unico_fuente'] == '0445fb3692fc29c91170b5897286ddc45f8b6ae9']
 df['cedula'] = df['cedula'].astype(str)
 df['documento'] = df['cedula'].fillna('')
 df['documento'] = df['documento'].str.strip()
@@ -222,8 +229,8 @@ homologacion.etnia.etnia_valida(df, etnia='iden_pertenenciaetnica')
 # Fecha de nacimiento
 df_r = df[
     df['codigo_unico_fuente'] == '0003c22c6df379bf4f780d84230415100cf99e59']
-
-df['anio_nacimiento'] = pd.to_numeric(df['yy_nacimiento'], errors='coerce')
+df_anio = df['yy_nacimiento']
+df['anio_nacimiento'] = pd.to_numeric(df_anio.iloc[:, 0], errors='coerce')
 df['mes_nacimiento'] = pd.to_numeric(df['mm_nacimiento'], errors='coerce')
 df['dia_nacimiento'] = pd.to_numeric(df['dd_nacimiento'], errors='coerce')
 
@@ -393,7 +400,8 @@ columnas_a_mantener = [
 # Filtrar las columnas que deseas mantener en el DataFrame
 df = df[columnas_a_mantener]
 
-cols_to_clean = ['descripcion_relato', 'sexo', 'municipio']
+cols_to_clean = ['descripcion_relato', 'sexo', 'municipio',
+                 'iden_pertenenciaetnica']
 for col in cols_to_clean:
     df[col] = df[col].fillna("")
 

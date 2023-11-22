@@ -1,7 +1,6 @@
 {
 "DIRECTORY_PATH": "C:/A_UBPD/Fuentes/OrquestadorNatalia/",
 "DB_SERVER": "localhost",
-"DB_DATABASE": "UNIVERSO_PDD",
 "DB_USERNAME": "sa",
 "DB_PASSWORD": "ClaveSqlserver1"
 }

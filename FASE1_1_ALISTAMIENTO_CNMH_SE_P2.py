@@ -597,14 +597,23 @@ cnmh = cnmh.drop_duplicates(subset=['id_registro'], keep='first')
 cnmh_codigos_unicos = cnmh['codigo_unico_fuente'].nunique()
 # Identificación y eliminacin de Registros No Identificados
 # Filtrar registros con información de identificación
-cnmh_ident = cnmh[(~cnmh['primer_nombre'].isna() |
-                   ~cnmh['segundo_nombre'].isna()) &
-                  (~cnmh['primer_apellido'].isna() |
-                   ~cnmh['segundo_apellido'].isna()) &
-                  (~cnmh['documento'].isna() |
-                   ~cnmh['fecha_ocur_anio'].isna() |
-                   ~cnmh['fecha_ocur_anio'].isna() |
-                   ~cnmh['departamento_ocurrencia'].isna())]
+# cnmh_ident = cnmh[(~cnmh['primer_nombre'].isna() |
+#                    ~cnmh['segundo_nombre'].isna()) &
+#                   (~cnmh['primer_apellido'].isna() |
+#                    ~cnmh['segundo_apellido'].isna()) &
+#                   (~cnmh['documento'].isna() |
+#                    ~cnmh['fecha_ocur_anio'].isna() |
+#                    ~cnmh['fecha_ocur_anio'].isna() |
+#                    ~cnmh['departamento_ocurrencia'].isna())]
+cnmh_ident = cnmh[(~cnmh['primer_nombre'].isin(["", None]) |
+                   ~cnmh['segundo_nombre'].isin(["", None])) &
+                  (~cnmh['primer_apellido'].isin(["", None]) |
+                   ~cnmh['segundo_apellido'].isin(["", None])) &
+                  (~cnmh['documento'].isin(["", None]) |
+                   ~cnmh['fecha_ocur_anio'].isin(["", None]) |
+                   ~cnmh['fecha_ocur_anio'].isin(["", None]) |
+                   ~cnmh['departamento_ocurrencia'].isin(["", None]))]
+
 # Filtrar registros sin información de identificación
 cnmh_no_ident = cnmh[~cnmh['id_registro'].isin(cnmh_ident['id_registro'])]
 nrow_cnmh = len(cnmh)

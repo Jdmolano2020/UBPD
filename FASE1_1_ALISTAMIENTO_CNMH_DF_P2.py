@@ -621,13 +621,13 @@ if len(cnmh) != len(cnmh['codigo_unico_fuente'].unique()):
 
 # Filtrar registros con nombres y apellidos no nulos, y al menos uno de
 # los otros campos no nulos
-cnmh_ident = cnmh[(~cnmh['primer_nombre'].isna() |
-                   ~cnmh['segundo_nombre'].isna()) &
-                  (~cnmh['primer_apellido'].isna() |
-                   ~cnmh['segundo_apellido'].isna()) &
-                  (~cnmh['documento'].isna() |
-                   ~cnmh['fecha_ocur_anio'].isna() |
-                   ~cnmh['departamento_ocurrencia'].isna())]
+cnmh_ident = cnmh[(~cnmh['primer_nombre'].isin(["", None]) |
+                   ~cnmh['segundo_nombre'].isin(["", None])) &
+                  (~cnmh['primer_apellido'].isin(["", None]) |
+                   ~cnmh['segundo_apellido'].isin(["", None])) &
+                  (~cnmh['documento'].isin(["", None]) |
+                   ~cnmh['fecha_ocur_anio'].isin(["", None]) |
+                   ~cnmh['departamento_ocurrencia'].isin(["", None]))]
 # Filtrar registros que no cumplen con los criterios anteriores
 cnmh_no_ident = cnmh[~cnmh['id_registro'].isin(cnmh_ident['id_registro'])]
 

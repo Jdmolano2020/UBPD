@@ -229,8 +229,9 @@ homologacion.etnia.etnia_valida(df, etnia='iden_pertenenciaetnica')
 # Fecha de nacimiento
 df_r = df[
     df['codigo_unico_fuente'] == '0003c22c6df379bf4f780d84230415100cf99e59']
-df_anio = df['yy_nacimiento']
-df['anio_nacimiento'] = pd.to_numeric(df_anio.iloc[:, 0], errors='coerce')
+# df_anio = df['yy_nacimiento']
+# df['anio_nacimiento'] = pd.to_numeric(df_anio.iloc[:, 0], errors='coerce')
+df['anio_nacimiento'] = pd.to_numeric(df['yy_nacimiento'], errors='coerce')
 df['mes_nacimiento'] = pd.to_numeric(df['mm_nacimiento'], errors='coerce')
 df['dia_nacimiento'] = pd.to_numeric(df['dd_nacimiento'], errors='coerce')
 

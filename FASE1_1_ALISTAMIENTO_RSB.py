@@ -487,6 +487,17 @@ csv_file_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_UBPD_RSB.
 df_rsb.to_csv(csv_file_path, index=False)
 
 
+#################
+DB_SCHEMA = "version5"
+DB_TABLE = "BD_UBPD_RSB"
+
+with engine.connect() as conn, conn.begin():
+    conn.execute(f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{DB_SCHEMA}') BEGIN EXEC('CREATE SCHEMA {DB_SCHEMA}') END")
+
+    
+df_rsb.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
+##################
+
 nrow_df = len(df_rsb)
 print("Registros despues left dane depto muni:",nrow_df)
 #identificados 13551

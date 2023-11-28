@@ -19,12 +19,28 @@ from sqlalchemy import create_engine
  #   "C:/Users/HP/Documents/FIA/Demo/pruebaBlack/UBPD/datos/BD_CNMH_DF.dta")
 # df_ICMP = pd.read_stata(
 #     "C:/Users/HP/Documents/FIA/Demo/pruebaBlack/UBPD/datos/BD_ICMP.dta")
-df_ICMP = pd.read_stata(
-    "C:/Users/HP/Documents/FIA/Demo/pruebaBlack/UBPD/datos/BD_FGN_INACTIVOS.dta")
+# df_ICMP = pd.read_stata(
+#     "C:/Users/HP/Documents/FIA/Demo/pruebaBlack/UBPD/datos/BD_FGN_INACTIVOS.dta")
+# df_ef = pd.read_stata(
+#     "C:/Users/HP/Documents/FIA/Demo/pruebaBlack/UBPD/datos/Equivalencia_fonetica.dta")
+
+df_soundex = pd.read_csv(
+    "C:/Users/HP/Documents/FIA/Demo/pruebaBlack/UBPD/datos/BDPD_SOUNDEX.csv")
+
+server = 'LAPTOP-V6LUQTIO\SQLEXPRESS/'
+database = 'userubpd'
+trusted_connection = True
+conn_str = f'mssql+pyodbc://{server}/{database}?trusted_connection={trusted_connection}'
+engine = create_engine(conn_str)
+df_soundex.to_sql('BDPD_SOUNDEX', con=engine, if_exists='replace', index=False) 
+
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)# Escribir los DataFrames en las tablas correspondientes en la base de datos
 
-df_ICMP.to_sql('FGN_INACTIVOS_U', con=engine, if_exists='replace', index=False)
+df_soundex.to_sql('BDPD_SOUNDEX', con=engine, if_exists='replace', index=False) 
+# df_ef[['FON1', 'FON2', 'FON3', 'FON4', 'FON5', 'FON6', 'FON7', 'FON8', 'FON9', 'FON10', 'FON11', 'FON12', 'FON13', 'FON14']] = df_ef['fonetico'].str.split(expand=True)
+# df_ef.to_sql('Equivalencia_fonetica', con=engine, if_exists='replace', index=False)
+# df_ICMP.to_sql('FGN_INACTIVOS_U', con=engine, if_exists='replace', index=False)
 # df_ICMP.to_sql('ICMP_U', con=engine, if_exists='replace', index=False)
 # df_CEV_JEP.to_sql('CEV_JEP_U', con=engine, if_exists='replace', index=False)
 

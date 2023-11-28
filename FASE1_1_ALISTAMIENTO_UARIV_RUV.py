@@ -5,7 +5,6 @@ import json
 import time
 import string
 import pyodbc
-import swifter
 import numpy as np
 import pandas as pd
 import hashlib
@@ -85,8 +84,6 @@ csv_path = os.path.join(DIRECTORY_PATH, "fuentes secundarias", "UBPD_UARIV_RUV_S
 dtypes = {'VILB_DOCUMENTO': str, 'VILB_DESCRIPCIONDISCAPACIDAD': str}
 df_uariv = pd.read_csv(csv_path, sep='#', encoding='latin-1', dtype=dtypes)
 
-####################
-
 # Columnas de interés
 interest_columns = ["VILB_IDPERSONA", "VILB_IDHOGAR", "VILB_TIPODOCUMENTO",
                     "VILB_DOCUMENTO", "VILB_PRIMERNOMBRE", "VILB_SEGUNDONOMBRE",
@@ -108,8 +105,6 @@ df_uariv = df_uariv[interest_columns]
 # Crear una nueva columna 'id_registro' con hash para cada fila
 df_uariv['id_registro'] = df_uariv.apply(funcion_hash, axis=1)
 
-#####################
-
 df_uariv["tabla_origen"] = "UARIV_RUV"
 df_uariv["codigo_unico_fuente"] = df_uariv["VILB_IDPERSONA"].astype(str) + "_" + df_uariv["VILB_FUENTE"]
 
@@ -118,9 +113,9 @@ id_registros = df_uariv[['id_registro']]
 
 # Definir una lista de valores a reemplazar
 na_values = {
-    "SIN INFORMACION": np.nan,
-    "ND": np.nan,
-    "AI": np.nan}
+    "[SIN INFORMACION]": "",
+    "ND": "",
+    "AI": ""}
 
 # Definir la lista de variables a limpiar
 clean_columns = [
@@ -142,10 +137,9 @@ df_uariv = df_uariv.astype(str)
 df_uariv = df_uariv.apply(lambda col: col.str.strip().str.upper() if col.name in clean_columns else col)
 
 # Aplicar las transformaciones a las columnas de tipo 'str'
-# Llenar valores nulos con una cadena vacía antes de aplicar clean_text
-df_uariv[clean_columns] = df_uariv[clean_columns].swifter.apply(clean_text)
+df_uariv[clean_columns] = df_uariv[clean_columns].apply(clean_text)
+df_uariv[clean_columns] = df_uariv[clean_columns].replace(na_values)
 
-# Registra el tiempo de finalización
 end_time = time.time()
 
 # Calcula el tiempo transcurrido
@@ -153,13 +147,10 @@ elapsed_time = end_time - start_time
 
 print(f"Tiempo transcurrido: {elapsed_time/60} segundos")
 
-
-df_uariv[clean_columns] = df_uariv[clean_columns].apply(clean_text)
-df_uariv[clean_columns] = df_uariv[clean_columns].replace(na_values)
-
 # Unir la columna 'id_registro' al DataFrame
 df_uariv = pd.concat([df_uariv, id_registros], axis=1)
-
+print(len(df_uariv))
+muestra = df_uariv.sample(n=100)
 # homologacion de estructura, formato y contenido
 
 ##Datos sobre los hechos

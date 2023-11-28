@@ -44,6 +44,7 @@ DB_SCHEMA = "orq_salida"
 DB_TABLE = "RSB"
 
 # Cambiar de directorio
+
 archivo_a_borrar = os.path.join("fuentes secundarias",
                                 "V_UBPD_RSB.csv")
 
@@ -65,7 +66,6 @@ engine = create_engine(db_url)
 sql_query = f'SELECT * FROM {DB_DATABASE}.{DB_SCHEMA}.{DB_TABLE}'
 df_rsb = pd.read_sql(sql_query, engine)
 
-#38903
 # Convertir nombres de columnas a minúsculas (lower)
 df_rsb.columns = [col.lower() for col in df_rsb.columns]
     
@@ -101,6 +101,8 @@ df_rsb['in_ubpd'] = 1
 df_rsb['codigo_unico_fuente_'] = df_rsb['codigo_unico_fuente'].apply(lambda x: f"{int(x):06}")
 df_rsb.drop(columns=['codigo_unico_fuente'], inplace=True)
 
+#####################################################################################################
+#df_rsb = df_rsb[df_rsb['codigo_unico_fuente_'] == '000067']
 df_rsb.rename(columns={'codigo_unico_fuente_': 'codigo_unico_fuente'}, inplace=True)
 
 # Guardar el DataFrame en un archivo
@@ -164,10 +166,7 @@ df_rsb = pd.merge(df_rsb, dane, how='left', left_on=['codigo_dane_departamento',
                 right_on=['codigo_dane_departamento', 'codigo_dane_municipio'], indicator = True)
 df_rsb['_merge'] = df_rsb['_merge'].map({'left_only': 1, 'right_only': 2, 'both': 3})
 
-df_rsb = df_rsb[df_rsb['_merge'] != 2]
-#38903
-
-#Ordenar el DataFrame
+# Ordenar el DataFrame
 columns_to_sort = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'codigo_dane_departamento','departamento_ocurrencia']
 df_rsb.sort_values(by=columns_to_sort, ascending=[True, True, True, False, True], inplace=True)
 
@@ -188,20 +187,17 @@ homologacion.fecha.fechas_validas (df_rsb,fecha_dia = 'fecha_ocur_dia',
                                    fecha = 'fecha_desaparicion_dtf',
                                    fechat= 'fecha_desaparicion')
 
-# Borrar registros si el año tiene menos de 4 dígitos
-df_rsb = df_rsb[df_rsb['fecha_ocur_anio'].apply(lambda x: len(x) == 4 if isinstance(x, str) else False)]
+# Reemplazar "." con cadena vacía
+df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].replace('.', '')
+
+# Reemplazar si la longitud no es 4 con cadena vacía
+df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].apply(lambda x: '' if x < 1000 else x)
 
 # Corrección de errores tipográficos
 df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].apply(lambda x: x.replace("18", "19", 1) if isinstance(x, str) and x.startswith("18") else x)
 df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].apply(lambda x: x.replace("179", "197", 1) if isinstance(x, str) and x.startswith("179") else x)
 df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].apply(lambda x: x.replace("169", "196", 1) if isinstance(x, str) and x.startswith("169") else x)
 df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].apply(lambda x: x.replace("159", "195", 1) if isinstance(x, str) and x.startswith("159") else x)
-
-# Convertir la columna "fecha_ocur_anio" a tipo de datos numérico
-df_rsb['fecha_ocur_anio'] = pd.to_numeric(df_rsb['fecha_ocur_anio'], errors='coerce')
-
-# Generar una nueva columna "fecha_ocur_anio_dtf" como número real
-df_rsb['fecha_ocur_anio_dtf'] = df_rsb['fecha_ocur_anio'].astype(float)
 
 # Concatenar las columnas de año, mes y día si todas contienen valores no nulos
 df_rsb['fecha_desaparicion'] = df_rsb.apply(lambda row: f"{row['fecha_ocur_anio']}{row['fecha_ocur_mes']}{row['fecha_ocur_dia']}" if all(row[['fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia']].notnull()) else "", axis=1)
@@ -225,6 +221,7 @@ FASE1_HOMOLOGACION_CAMPO_OTRAS_GUERRILLAS.homologar_otras_guerrillas(df_rsb)
 # Otro actor- PENDIENTE
 # Aplicar las condiciones y asignar 1 a pres_resp_otro cuando todas las condiciones se cumplan.
 df_rsb['pres_resp_otro'] = 0
+
 df_rsb.loc[(df_rsb['presunto_responsable'] != "") &
        (df_rsb['presunto_responsable'] != "X") &
        (df_rsb['presunto_responsable'].str.contains("PENDIENTE") == False) &
@@ -233,12 +230,12 @@ df_rsb.loc[(df_rsb['presunto_responsable'] != "") &
        (df_rsb['presunto_responsable'].str.contains("PRECISAR") == False) &
        (df_rsb['presunto_responsable'].str.contains("REFIERE") == False) &
        (df_rsb['presunto_responsable'].str.contains("IDENTIFICADA") == False) &
-       (df_rsb['pres_resp_paramilitares'].isna()) &
-       (df_rsb['pres_resp_grupos_posdesmov'].isna()) &
-       (df_rsb['pres_resp_agentes_estatales'].isna()) &
-       (df_rsb['pres_resp_guerr_farc'].isna()) &
-       (df_rsb['pres_resp_guerr_eln'].isna()) &
-       (df_rsb['pres_resp_guerr_otra'].isna()), 'pres_resp_otro'] = 1
+       (df_rsb['pres_resp_paramilitares'].isna() | pd.to_numeric(df_rsb['pres_resp_paramilitares']) == 0) &
+       (df_rsb['pres_resp_grupos_posdesmov'].isna() | pd.to_numeric(df_rsb['pres_resp_grupos_posdesmov']) == 0) &
+       (df_rsb['pres_resp_agentes_estatales'].isna() | pd.to_numeric(df_rsb['pres_resp_agentes_estatales']) == 0) &
+       (df_rsb['pres_resp_guerr_farc'].isna() | pd.to_numeric(df_rsb['pres_resp_guerr_farc']) == 0) &
+       (df_rsb['pres_resp_guerr_eln'].isna() | pd.to_numeric(df_rsb['pres_resp_guerr_eln']) == 0) &
+       (df_rsb['pres_resp_guerr_otra'].isna() | pd.to_numeric(df_rsb['pres_resp_guerr_otra']) == 0), 'pres_resp_otro'] = 1
 
 # Convertir la columna "presunto_responsable" a cadena
 df_rsb['presunto_responsable'] = df_rsb['presunto_responsable'].astype(str)
@@ -254,7 +251,12 @@ df_rsb['tipo_de_hecho'] = df_rsb['tipo_de_hecho'].astype(str)
 df_rsb['TH_DF'] = (df_rsb['tipo_de_hecho'].str.contains("DESAPARICION", case=False) & df_rsb['tipo_de_hecho'].str.contains("FORZADA", case=False)).astype(int)
 df_rsb['TH_SE'] = (df_rsb['tipo_de_hecho'].str.contains("SECUESTRO", case=False)).astype(int)
 df_rsb['TH_RU'] = (df_rsb['tipo_de_hecho'].str.contains("RECLUTAMIENTO", case=False)).astype(int)
-df_rsb['TH_OTRO'] = ((df_rsb['TH_DF'] == 0) & (df_rsb['TH_SE'] == 0) & (df_rsb['TH_RU'] == 0) & ~df_rsb['tipo_de_hecho'].str.contains("SIN", case=False) & ~df_rsb['tipo_de_hecho'].str.contains("DETERMINAR", case=False) & df_rsb['tipo_de_hecho'] != "").astype(int)
+df_rsb['TH_OTRO'] = ((df_rsb['TH_DF'].isna() | pd.to_numeric(df_rsb['TH_DF']) == 0) &
+                     (df_rsb['TH_RU'].isna() | pd.to_numeric(df_rsb['TH_RU']) == 0) & 
+                     (df_rsb['TH_SE'].isna() | pd.to_numeric(df_rsb['TH_SE']) == 0) & 
+                     (~df_rsb['tipo_de_hecho'].str.contains('SIN')) &
+                     (~df_rsb['tipo_de_hecho'].str.contains('DETERMINAR')) &
+                     (df_rsb['tipo_de_hecho'] != '')).astype(int)
 df_rsb.drop(['tipo_de_hecho'], axis=1, inplace=True)
 # Convertir el texto en la columna "descripcion_relato" a mayúsculas
 df_rsb['descripcion_relato'] = df_rsb['descripcion_relato'].str.upper()
@@ -389,7 +391,6 @@ df_rsb['m_dtpecv'] = df_rsb['m_dtpecv'].map({'left_only': 1, 'right_only': 2, 'b
 # cuando 'situacion_actual_des' está vacía y 'm_dtpecv' indica que en ambas tablas hubo coincidencia
 df_rsb.loc[(df_rsb['situacion_actual_des'] == '') & (df_rsb['m_dtpecv'] == 3), 'situacion_actual_des'] = 'Apareció Muerto'
 
-
 # Eliminación de la columna de indicador
 df_rsb.drop('m_dtpecv', axis=1, inplace=True)
 df_rsb = df_rsb[df_rsb.columns]
@@ -403,10 +404,16 @@ df_rsb.sort_values(by=['codigo_unico_fuente', 'situacion_actual_des'], ascending
 # Reemplazar situacion_actual_des con el valor de la primera observación dentro de cada bloque
 df_rsb['situacion_actual_des'] = df_rsb.groupby('codigo_unico_fuente')['situacion_actual_des'].transform('first')
 
-
 # Eliminación de Registros No Identificados
 non_miss = df_rsb[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].count(axis=1)
 df_rsb['rni'] = (non_miss < 2).astype(int)
+
+# Convertir NaN o NaT a valor vacío en las columnas relevantes
+columns_to_fill = ['codigo_dane_departamento', 'documento', 'fecha_nacimiento']
+df_rsb[columns_to_fill] = df_rsb[columns_to_fill].fillna("")
+
+# convertir a caracter
+df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].astype(str)
 
 df_rsb.loc[(df_rsb['primer_nombre'] == "") | (df_rsb['primer_apellido'] == ""), 'rni'] = 1
 df_rsb.loc[(df_rsb['codigo_dane_departamento'] == "") & (df_rsb['fecha_ocur_anio'] == "") & (df_rsb['documento'] == "") & (df_rsb['fecha_nacimiento'] == ""), 'rni'] = 1
@@ -431,9 +438,17 @@ df_rsb_copy = df_rsb_copy.groupby('codigo_unico_fuente').head(1)
 csv_file_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_UBPD_RSB_PNI.csv")
 df_rsb_copy.to_csv(csv_file_path, index=False)
 
+DB_SCHEMA = "version5"
+DB_TABLE = "BD_UBPD_RSB_NI"
+
+with engine.connect() as conn, conn.begin():
+    conn.execute(f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{DB_SCHEMA}') BEGIN EXEC('CREATE SCHEMA {DB_SCHEMA}') END")
+    df_rsb_copy.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
+
 #retomamos el original o principal
 #conservamos los que son diferentes segun la comparacion, ó lo que es igual excluimos los que son igual
-#se comparan la suma acumulada del tro del grupo y el conteo del total delgrupo, si son iguales quedan por fuera
+#se comparan la suma acumulada del grupo y el conteo del total delgrupo, si son iguales quedan por fuera
+
 # se tienen en cuenta los que son registros identificables por que tienen suficiente informacion
 df_rsb = df_rsb[df_rsb['rni_'] != df_rsb['N']]
 
@@ -473,6 +488,7 @@ df_rsb['nonmiss'] = df_rsb[selected_nonmiss_columns].notnull().all(axis=1)
 df_rsb.sort_values(['codigo_unico_fuente', 'documento', 'nonmiss'], ascending=[True, False, False], inplace=True)
 
 #  Mantener solo la primera observación por cada valor único en 'codigo_unico_fuente'
+# la comento para llegar con todos los registros al final
 df_rsb = df_rsb.groupby('codigo_unico_fuente').head(1)
 
 # Eliminar la columna 'nonmiss'
@@ -487,16 +503,12 @@ csv_file_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_UBPD_RSB.
 df_rsb.to_csv(csv_file_path, index=False)
 
 
-#################
 DB_SCHEMA = "version5"
 DB_TABLE = "BD_UBPD_RSB"
 
 with engine.connect() as conn, conn.begin():
     conn.execute(f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{DB_SCHEMA}') BEGIN EXEC('CREATE SCHEMA {DB_SCHEMA}') END")
-
-    
-df_rsb.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
-##################
+    df_rsb.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
 
 nrow_df = len(df_rsb)
 print("Registros despues left dane depto muni:",nrow_df)

@@ -167,11 +167,13 @@ variables_limpieza_dane = ["departamento", "municipio"]
 # Aplicar transformaciones a las columnas de tipo 'str'
 dane[variables_limpieza_dane] = dane[variables_limpieza_dane].apply(clean_text)
 
+df.rename(columns={'departamento_hecho': 'departamento_desaparicion',
+                   'municipio_hecho':'municipio_desaparicion'}, inplace=True)
 
-  
+
 columns_to_normalize = ['nombres', 'primer_apellido', 'segundo_apellido',
-                        'pais_hechos', 'departamento_hecho',
-                        'municipio_hecho', 'estado_identificacion',
+                        'pais_hechos', 'departamento_desaparicion',
+                        'municipio_desaparicion', 'estado_identificacion',
                         'estado_entrega', 'estado_activo']
 df[columns_to_normalize] = df[columns_to_normalize].apply(clean_text)
 # Datos sobre los hechos
@@ -293,8 +295,7 @@ df.rename(columns={'edad_1': 'edad'}, inplace=True)
 df['situacion_actual_des'] = np.where(
     ((df['estado_identificacion'] == "PENDIENTE") &
      (df['estado_entrega'] == "CONCLUIDO")) |
-    (df['estado_identificacion'] == "CONCLUIDO"), "Apareció Muerto",
-    df['situacion_actual_des'])
+    (df['estado_identificacion'] == "CONCLUIDO"), "Apareció Muerto", "")
 
 df['situacion_actual_des'] = np.where(
     (df['estado_identificacion'] == "ANULADO"),
@@ -460,8 +461,8 @@ columnas = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo',
             'segundo_apellido', 'documento', 'sexo', 'iden_pertenenciaetnica',
             'edad', 'fecha_desaparicion', 'fecha_desaparicion_dtf',
             'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia',
-            'codigo_dane_departamento', 'departamento_ocurrencia',
-            'codigo_dane_municipio', 'municipio_ocurrencia',
+            'codigo_dane_departamento', 'departamento_desaparicion',
+            'codigo_dane_municipio', 'municipio_desaparicion',
             'situacion_actual_des', 'descripcion_relato']
 df = df[columnas]
 
@@ -474,7 +475,7 @@ df['non_miss'] = df[['primer_nombre', 'segundo_nombre',
                      'descripcion_relato']].count(axis=1)
 # Ordenar el DataFrame por 'codigo_unico_fuente', 'documento' y 'nonmiss'
 df.sort_values(by=['codigo_unico_fuente', 'documento', 'non_miss'],
-               ascending=[True, True], inplace=True)
+               ascending=[True, True, True], inplace=True)
 # Mantener solo el primer registro para cada 'codigo_unico_fuente'
 df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first', inplace=True)
 nrow_df = len(df)

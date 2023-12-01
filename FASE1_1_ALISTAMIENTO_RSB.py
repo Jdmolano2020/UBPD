@@ -102,7 +102,7 @@ df_rsb['codigo_unico_fuente_'] = df_rsb['codigo_unico_fuente'].apply(lambda x: f
 df_rsb.drop(columns=['codigo_unico_fuente'], inplace=True)
 
 #####################################################################################################
-#df_rsb = df_rsb[df_rsb['codigo_unico_fuente_'] == '000067']
+#df_rsb = df_rsb[df_rsb['codigo_unico_fuente_'] == '141143']
 df_rsb.rename(columns={'codigo_unico_fuente_': 'codigo_unico_fuente'}, inplace=True)
 
 # Guardar el DataFrame en un archivo
@@ -191,7 +191,8 @@ homologacion.fecha.fechas_validas (df_rsb,fecha_dia = 'fecha_ocur_dia',
 df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].replace('.', '')
 
 # Reemplazar si la longitud no es 4 con cadena vacía
-df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].apply(lambda x: '' if x < 1000 else x)
+df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].apply(lambda x: '' if 
+    (isinstance(x, int) or isinstance(x, float)) and len(str(x)) != 4 else x)
 
 # Corrección de errores tipográficos
 df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].apply(lambda x: x.replace("18", "19", 1) if isinstance(x, str) and x.startswith("18") else x)
@@ -365,7 +366,7 @@ for col in df_rsb.columns:
         df_rsb.loc[df_rsb['inconsistencia_fechas'] != 0, col] = np.nan
 
 # Reemplazar la columna 'edad' con 'edad_desaparicion_est' donde sea necesario
-df_rsb.loc[df_rsb['edad_desaparicion_est'].notnull() & df_rsb['edad'].isnull(), 'edad'] = df_rsb['edad_desaparicion_est']
+df_rsb.loc[df_rsb['edad_desaparicion_est'].notnull() & (df_rsb['edad'].isnull() | df_rsb['edad'] == 0), 'edad'] = df_rsb['edad_desaparicion_est']
 
 df_rsb.drop(['edad_desaparicion_est'], axis=1, inplace=True)
 

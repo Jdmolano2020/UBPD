@@ -44,13 +44,13 @@ with open('config.json') as config_file:
     config = json.load(config_file)
 
 DIRECTORY_PATH = config['DIRECTORY_PATH']
-DB_SERVER = config['DB_SERVER']
-DB_USERNAME = config['DB_USERNAME']
-DB_PASSWORD = config['DB_PASSWORD']
+#DB_SERVER = config['DB_SERVER']
+#DB_USERNAME = config['DB_USERNAME']
+#DB_PASSWORD = config['DB_PASSWORD']
 
-DB_DATABASE = "PRD_QPREP_UBPD"
-DB_SCHEMA = "dbo"
-DB_TABLE = "UARIV_UNI_VIC_LB_"
+#DB_DATABASE = "PRD_QPREP_UBPD"
+#DB_SCHEMA = "dbo"
+#DB_TABLE = "UARIV_UNI_VIC_LB_"
 
 # Realizar un merge con el archivo DIVIPOLA_departamentos_122021.dta
 dane = pd.read_stata(DIRECTORY_PATH + "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
@@ -78,7 +78,7 @@ dane = pd.concat([dane, additional_data], ignore_index=True)
 # Seleccionar las columnas 'codigo_dane_departamento'
 # y 'departamento_ocurrencia' y eliminar duplicados
 dane_depts = dane[['codigo_dane_departamento',
-                   'departamento_ocurrencia']].drop_duplicates()
+                  'departamento_ocurrencia']].drop_duplicates()
 
 csv_path = os.path.join(DIRECTORY_PATH, "fuentes secundarias", "UBPD_UARIV_RUV_SIN_DESPLA_FORZA_.csv")
 dtypes = {'VILB_DOCUMENTO': str, 'VILB_DESCRIPCIONDISCAPACIDAD': str}
@@ -140,20 +140,12 @@ df_uariv = df_uariv.apply(lambda col: col.str.strip().str.upper() if col.name in
 df_uariv[clean_columns] = df_uariv[clean_columns].apply(clean_text)
 df_uariv[clean_columns] = df_uariv[clean_columns].replace(na_values)
 
-end_time = time.time()
-
-# Calcula el tiempo transcurrido
-elapsed_time = end_time - start_time
-
-print(f"Tiempo transcurrido: {elapsed_time/60} segundos")
-
 # Unir la columna 'id_registro' al DataFrame
 df_uariv = pd.concat([df_uariv, id_registros], axis=1)
-print(len(df_uariv))
-muestra = df_uariv.sample(n=100)
-# homologacion de estructura, formato y contenido
 
-##Datos sobre los hechos
+
+# homologacion de estructura, formato y contenido
+# Datos sobre los hechos
 # lugar de ocurrencia
 # Definición de la lista de códigos de municipios específicos
 only_departamento = [2368, 2381, 5000, 8000, 13000, 15000, 17000, 18000, 19000, 20000, 23000, 25000,
@@ -161,67 +153,72 @@ only_departamento = [2368, 2381, 5000, 8000, 13000, 15000, 17000, 18000, 19000, 
                      81000, 85000, 86000, 91000, 95000, 99000]
 
 # Aplicar transformaciones en el DataFrame 'uariv'
-df_uariv['codigo_dane_municipio'] = np.where(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'] < 1000, np.nan,
-                                          np.where(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'] == 1349, '13490',
-                                                   np.where(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].isin([27086, 2727086]), '27615',
-                                                            np.where(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].isin(only_departamento), np.nan,
-                                                                     np.where(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'] < 9000,
+df_uariv['codigo_dane_municipio'] = np.where(pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']) < 1000, np.nan,
+                                          np.where(pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']) == 1349, '13490',
+                                                   np.where(pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']).isin([27086, 2727086]), '27615',
+                                                            np.where(pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']).isin(only_departamento), np.nan,
+                                                                     np.where(pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']) < 9000,
                                                                               '0' + df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].astype(str),
                                                                               df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].astype(str))))))
 
 # Realizar un left join con el DataFrame 'dane'
-df_uariv = df_uariv.merge(dane, on='codigo_dane_municipio', how='left')
+df_uariv = df_uariv.merge(dane, on='codigo_dane_municipio', how='left', suffixes=('', '_sec'))
 
 # Seleccionar las columnas necesarias y eliminar 'departamento_ocurrencia'
-df_uariv.drop(columns=['departamento_ocurrencia'], inplace=True)
+#df_uariv.drop(columns=['departamento_ocurrencia'], inplace=True)
 
 # Aplicar transformaciones adicionales
-df_uariv['codigo_dane_departamento'] = np.where((df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'] > 0) & (df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'] < 10),
+df_uariv['codigo_dane_departamento'] = np.where((pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']) > 0) & (pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']) < 10),
                                              df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].astype(str).str.zfill(2),
-                                             np.where(((df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'] >= 10) & (df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'] < 100)) | 
-                                                       (df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].isin(only_departamento)),
+                                             np.where(((pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']) >= 10) & (pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']) < 100)) | 
+                                                       (pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']).isin(only_departamento)),
                                                        df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].astype(str).str[:2],
-                                                       df_uariv['codigo_dane_departamento']))
-
-df_uariv['codigo_dane_departamento'] = np.where(df_uariv['codigo_dane_departamento'] == '80', '08', uariv['codigo_dane_departamento'])
+                                                       df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].astype(str).str[:2]))
+df_uariv['codigo_dane_departamento'] = np.where(df_uariv['codigo_dane_departamento'] == '80', '08', df_uariv['codigo_dane_departamento'])
 
 # Realizar un left join con el DataFrame 'dane_depts'
-df_uariv = df_uariv.merge(dane_depts, on='codigo_dane_departamento', how='left')
+df_uariv = df_uariv.merge(dane_depts, on='codigo_dane_departamento', how='left', suffixes=('', '_sec'))
 
 # Realizar las últimas transformaciones
 df_uariv['pais_ocurrencia'] = np.where(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'] == 0, 'COLOMBIA', df_uariv['VILB_PAIS'])
-df_uariv[['departamento_ocurrencia', 'municipio_ocurrencia']] = df_uariv[['departamento_ocurrencia', 'municipio_ocurrencia']].apply(lambda col: col.apply(lambda x: clean_func(x, na_values)))
+
+columns_to_normalize = ["departamento_ocurrencia", "municipio_ocurrencia"]
+
+#2. Normalización de los campos de texto
+df_uariv[columns_to_normalize] = df_uariv[columns_to_normalize].apply(clean_text)
+df_uariv[columns_to_normalize] = df_uariv[columns_to_normalize].replace(na_values)
+
 
 # Filtrar para mantener solo los registros con 'codigo_dane_departamento' y 'codigo_dane_municipio' presentes en 'dane'
 df_uariv = df_uariv[df_uariv['codigo_dane_departamento'].isin(dane['codigo_dane_departamento'])]
 df_uariv = df_uariv[df_uariv['codigo_dane_municipio'].isin(dane['codigo_dane_municipio'])]
 
-
 # llevar a cabo mapeo de fechas
-corrige_fechas_ocurrencia(df_uariv)
+corrige_fecha_ocurrencia(df_uariv) 
 
-# Transformaciones
-df_uariv['fecha_desaparicion'] = pd.to_datetime(df_uariv['VILB_FECHAOCURRENCIA'], format="%d/%m/%Y").dt.strftime('%Y%m%d')
-df_uariv['fecha_desaparicion_dtf'] = pd.to_datetime(df_uariv['VILB_FECHAOCURRENCIA'], format="%d/%m/%Y")
-df_uariv['fecha_ocur_anio'] = pd.to_datetime(df_uariv['VILB_FECHAOCURRENCIA'], format="%d/%m/%Y").dt.strftime('%Y')
-df_uariv['fecha_ocur_mes'] = pd.to_datetime(df_uariv['VILB_FECHAOCURRENCIA'], format="%d/%m/%Y").dt.strftime('%m')
-df_uariv['fecha_ocur_dia'] = pd.to_datetime(df_uariv['VILB_FECHAOCURRENCIA'], format="%d/%m/%Y").dt.strftime('%d')
+######################################################### 11 min
+#df_uariv_copy=df_uariv.copy()
+###############################
+#df_uariv=df_uariv_copy.copy()
 
+df_uariv['fecha_desaparicion'] = df_uariv['VILB_FECHAOCURRENCIA'].astype(str)
+df_uariv['fecha_ocur_anio'] = pd.to_numeric(df_uariv['fecha_desaparicion'].str[6:10], errors='coerce')
+df_uariv['fecha_ocur_mes'] = pd.to_numeric(df_uariv['fecha_desaparicion'].str[3:5], errors='coerce')
+df_uariv['fecha_ocur_dia'] = pd.to_numeric(df_uariv['fecha_desaparicion'].str[0:2], errors='coerce')
 
-###################
-
-# fecha de ocurrencia 
-df_uariv['fecha_ocur_anio'] = pd.to_numeric(df_uariv['fecha_ocur_anio'], errors='coerce')
-df_uariv['fecha_ocur_mes'] = pd.to_numeric(df_uariv['fecha_ocur_mes'], errors='coerce')
-df_uariv['fecha_ocur_dia'] = pd.to_numeric(df_uariv['fecha_ocur_dia'], errors='coerce')
+# transformaciones sobre fecha de ocurrencia 
 homologacion.fecha.fechas_validas (df_uariv,fecha_dia = 'fecha_ocur_dia', 
                                    fecha_mes = 'fecha_ocur_mes',
                                    fecha_anio = 'fecha_ocur_anio',
                                    fecha = 'fecha_desaparicion_dtf',
                                    fechat= 'fecha_desaparicion')
-##################AQI VOY NOVIEMBRE 25 2023
+
+# Reemplazar si la longitud no es 4 con cadena vacía
+df_uariv['fecha_ocur_anio'] = df_uariv['fecha_ocur_anio'].apply(lambda x: '' if 
+    (isinstance(x, int) or isinstance(x, float)) and len(str(x)) != 4 else x)
+
 # Definir los valores a considerar como 'sin información' en actores
-no_information_actors = ['NO DEFINIDO', '', 'NO IDENTIFICA', 'SIN INFORMACION CONFLICTO ARMADO',
+no_information_actors = ['NO DEFINIDO', '', 'NAN', 'NO IDENTIFICA', 'SIN INFORMACION CONFLICTO ARMADO',
                            'NO IDENTIFICA CONFLICTO ARMADO', 'OTROS VIOLENCIA GENERALIZADA',
                            'SIN INFORMACION', 'NO IDENTIFICA RELACION CERCANA Y SUFICIENTE',
                            'NO IDENTIFICA VIOLENCIA GENERALIZADA',
@@ -230,8 +227,9 @@ no_information_actors = ['NO DEFINIDO', '', 'NO IDENTIFICA', 'SIN INFORMACION CO
                            'NO IDENTIFICA CONFLICTO ARMADO', 'CONFLICTO ARMADO',
                            '0', 'SIN INFORMACION VIOLENCIA GENERALIZADA']
 
-# Reemplazar los valores en VILB_PRESUNTOACTOR con NA si están en sin_informacion_actores
-df_uariv['VILB_PRESUNTOACTOR'] = np.where(df_uariv['VILB_PRESUNTOACTOR'].isin(no_information_actors), np.nan, df_uariv['VILB_PRESUNTOACTOR'])
+
+# Reemplazar los valores en VILB_PRESUNTOACTOR con vacio si están en sin_informacion_actores
+df_uariv['VILB_PRESUNTOACTOR'] = np.where(df_uariv['VILB_PRESUNTOACTOR'].isin(no_information_actors), "", df_uariv['VILB_PRESUNTOACTOR'])
 
 # Crear columnas de presuntos responsables y asignar 0 o 1 basado en ciertas condiciones
 df_uariv['pres_resp_agentes_estatales'] = np.where(df_uariv['VILB_PRESUNTOACTOR'].str.contains('FUERZA PUBLICA|AGENTE DEL ESTADO'), 1, 0)
@@ -254,13 +252,14 @@ df_uariv.drop('tmp', axis=1, inplace=True)
 
 pres_resp_cols = df_uariv.filter(like='pres_resp_')
 pres_resp_sum = pres_resp_cols.sum()
-
+#############################################
+# estandarizar tipo de hecho
 other_facts = ["HOMICIDIO",
-                "ACTO TERRORISTA / ATENTADOS / COMBATES / ENFRENTAM",
+                "ACTO TERRORISTA ATENTADOS COMBATES ENFRENTAM",
                 "PERDIDA DE BIENES MUEBLES O INMUEBLES",
                 "AMENAZA",
                 "DELITOS CONTRA LA LIBERTAD Y LA INTEGRIDAD SEXUAL ",
-                "MINAS ANTIPERSONAL, MUNICION SIN EXPLOTAR Y ARTEFA",
+                "MINAS ANTIPERSONAL MUNICION SIN EXPLOTAR Y ARTEFA",
                 "TORTURA",
                 "LESIONES PERSONALES FISICAS",
                 "ABANDONO O DESPOJO FORZADO DE TIERRAS",
@@ -275,25 +274,38 @@ df_uariv["TH_SE"] = np.where(df_uariv["VILB_HECHO"] == "SECUESTRO", 1,
                          np.where(df_uariv["VILB_HECHO"].isna(), np.nan,
                                   np.where(df_uariv["VILB_HECHO"] == "SIN INFORMACION", np.nan, 0)))
 
-df_uariv["TH_RU"] = np.where(df_uariv["VILB_HECHO"] == "VINCULACION DE NIÑOS NIÑAS Y ADOLESCENTES A ACTIVI", 1,
+df_uariv["TH_RU"] = np.where(df_uariv["VILB_HECHO"] == "VINCULACION DE NINOS NINAS Y ADOLESCENTES A ACTIVI", 1,
                          np.where(df_uariv["VILB_HECHO"].isna(), np.nan,
                                   np.where(df_uariv["VILB_HECHO"] == "SIN INFORMACION", np.nan, 0)))
 
-df_uariv["TH_OTRO"] = np.where(df_uariv["VILB_HECHO"].isin(otros_hechos), 1,
+df_uariv["TH_OTRO"] = np.where(df_uariv["VILB_HECHO"].isin(other_facts), 1,
                            np.where(df_uariv["VILB_HECHO"].isna(), np.nan,
                                     np.where(df_uariv["VILB_HECHO"] == "SIN INFORMACION", np.nan, 0)))
+#######################nov 30
 #relato 
 # Asignación de valores a las columnas
 df_uariv["descripcion_relato"] = ""
-df_uariv["situacion_actual_des"] = "Sin información"
+df_uariv["situacion_actual_des"] = "Sin informacion"
 
 ## Datos sobre las personas dadas por desaparecidas
 # Normalización de nombres y apellidos")
 #Se corrige los nombres de la presunta víctima
-homologacion.nombres.nombres_validos (df_uariv , primer_nombre = 'primer_nombre',
-                 segundo_nombre = 'segundo_nombre',
-                 primer_apellido = 'primer_apellido',
-                 segundo_apellido = 'segundo_apellido',
+# se arma nombre completo
+df_uariv[['VILB_PRIMER_NOMBRE',
+    'VILB_SEGUNDO_NOMBRE',
+    'VILB_PRIMER_APELLIDO',
+    'VILB_SEGUNDO_APELLIDO']] = df_uariv['nombre_completo'].apply(
+          lambda x: pd.Series(
+              homologacion.nombre_completo.limpiar_nombre_completo(x)))
+        
+print(len(df_uariv))
+muestra = df_uariv.sample(n=10000)
+        
+        
+homologacion.nombres.nombres_validos (df_uariv , primer_nombre = 'VILB_PRIMER_NOMBRE',
+                 segundo_nombre = 'VILB_SEGUNDO_NOMBRE',
+                 primer_apellido = 'VILB_PRIMER_APELLIDO',
+                 segundo_apellido = 'VILB_SEGUNDO_APELLIDO',
                  nombre_completo = 'nombre_completo')
 
 # Documento de identificación

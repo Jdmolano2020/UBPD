@@ -2,6 +2,8 @@ import os
 from sqlalchemy import create_engine
 import pandas as pd
 import numpy as np
+from datetime import datetime
+import yaml
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
 import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC
@@ -44,12 +46,16 @@ encoding = "ISO-8859-1"
 # 1. Conexión al repositorio de información (Omitir esta sección en Python)
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
+fecha_inicio = datetime.now()
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos
 query = "EXECUTE [dbo].[CONSULTA_V_FGN_INACTIVOS]"
 df = pd.read_sql_query(query, engine)
+nrow_df_ini = len(df)
+print("Registros despues cargue fuente: ", nrow_df_ini)
+
 # Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
 if parametro_cantidad != "":
     limite = int(parametro_cantidad)
@@ -289,6 +295,7 @@ df.loc[(df['edad_des_inf'] == 0) &
        (df['edad_des_sup'] == 0), 'edad'] = 0
 # Eliminar las columnas "edad_des_inf" y "edad_des_sup"
 df.drop(columns=['edad_des_inf', 'edad_des_sup'], inplace=True)
+nrow_df_fin = len(df)
 # 4. Identificación y eliminación de Registros No Identificados
 # (registros sin datos suficientes para la individualización de las víctimas)
 # Calcular la variable "non_miss" que cuenta la cantidad de columnas no
@@ -305,6 +312,7 @@ df['N'] = df.groupby(
     'codigo_unico_fuente')['codigo_unico_fuente'].transform('count')
 # Guardar registros no individualizables en un nuevo archivo
 df_rni = df[df['rni'] == 1].copy()
+nrow_df_no_ident = len(df_rni)
 # Guardar resultados en la base de datos de destino
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)# Escribir los DataFrames en las tablas correspondientes en la base de datos
@@ -315,6 +323,7 @@ df_rni.to_sql('BD_FGN_INACTIVOS_PNI', con=engine, if_exists='replace', index=Fal
 
 # Eliminar registros no individualizables o sin suficientes datos para la integración
 df = df[df['rni_'] != df['N']]
+nrow_df_ident = nrow_df
 # Eliminar columnas auxiliares
 df.drop(columns=['non_miss', 'rni_', 'N'], inplace=True)
 
@@ -341,6 +350,8 @@ df = df[columns_to_keep]
 df.sort_values(by=['codigo_unico_fuente', 'documento'], ascending=[False, False], inplace=True)
 # Mantener el registro más completo por cada persona identificada de forma única
 df.drop_duplicates(subset='codigo_unico_fuente', keep='first', inplace=True)
+nrow_df = len(df)
+n_duplicados = nrow_df_ident - nrow_df
 # Eliminar columnas auxiliares
 # df.drop(columns=['situacion_actual_des'], inplace=True)
 # Guardar el DataFrame en un archivo
@@ -355,3 +366,17 @@ group_summary = df.groupby('g').size().reset_index(name='count')
 # Eliminar la variable de grupo 'g'
 df.drop(columns=['g'], inplace=True)
 
+fecha_fin = datetime.now()
+
+log = {
+    "fecha_inicio": str(fecha_inicio),
+    "fecha_fin": str(fecha_fin),
+    "tiempo_ejecucion": str(fecha_fin - fecha_inicio),
+    'filas_iniciales_df': nrow_df_ini,
+    'filas_final_df': nrow_df_fin,
+    'filas_df_ident': nrow_df_ident,
+    'filas_df_no_ident': nrow_df_no_ident,
+    'n_duplicados': n_duplicados,
+}
+with open('log/resultado_df_inml_cad.yaml', 'w') as file:
+    yaml.dump(log, file)

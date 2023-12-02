@@ -2,6 +2,8 @@ import os
 from sqlalchemy import create_engine
 import pandas as pd
 import numpy as np
+from datetime import datetime
+import yaml
 import homologacion.limpieza
 import homologacion.fecha
 import homologacion.nombres
@@ -46,6 +48,7 @@ encoding = "ISO-8859-1"
 # 1. Conexión al repositorio de información (Omitir esta sección en Python)
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
+fecha_inicio = datetime.now()
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
@@ -53,8 +56,8 @@ engine = create_engine(db_url)
 query = "EXECUTE [dbo].[CONSULTA_V_JEP_CEV]"
 
 df = pd.read_sql_query(query, engine)
-nrow_df = len(df)
-print("Registros despues cargue fuente: ", nrow_df)
+nrow_df_ini = len(df)
+print("Registros despues cargue fuente: ", nrow_df_ini)
 
 # Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
 if parametro_cantidad != "":
@@ -284,6 +287,7 @@ for columna in columnas_fecha:
 # 4. Identificación y eliminación de Registros No Identificados
 # Crear una columna 'non_miss' que cuente la cantidad de valores no nulos
 # en las columnas especificadas
+nrow_df_fin = len(df)
 df['non_miss'] = df[['primer_nombre', 'segundo_nombre', 'primer_apellido',
                      'segundo_apellido']].count(axis=1)
 
@@ -306,10 +310,12 @@ df['N'] = df.groupby('codigo_unico_fuente').cumcount() + 1
 # al Universo mediante una comparación de nombres
 # Filtrar las filas donde 'rni_' es igual a 'N'
 df_posterior = df[df['rni_'] == df['N']]
+
 # Guardar el DataFrame filtrado en un archivo
 df_posterior.to_csv("archivos depurados/BD_CEV_JEP_PNI.csv", index=False)
 # Contar las filas del DataFrame
-count = len(df)
+count = len(df_posterior)
+nrow_df_no_ident = count
 # Crear una columna 'g' basada en 'codigo_unico_fuente'
 df['g'] = df['codigo_unico_fuente'].astype('category').cat.codes
 # Calcular la suma de 'g'
@@ -319,8 +325,8 @@ df.drop(columns=['g'], inplace=True)
 # Eliminar registros donde 'rni_' es igual a 'N'
 df = df[df['rni_'] != df['N']]
 nrow_df = len(df)
-print("Registros despues eliminar RNI: ", nrow_df)
-# 300
+nrow_df_ident = nrow_df
+print("Registros despues eliminar RNI:", nrow_df)
 # 5. Identificación de filas únicas
 # Crear una lista con las columnas que deseas mantener
 # Ranking para seleccionar el registro con información mas completa
@@ -432,11 +438,27 @@ nrow_df = len(df)
 print("Registros despues ordenar: ", nrow_df)
 # Mantener solo la primera fila de cada grupo 'codigo_unico_fuente'
 df = df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first')
-nrow_df = len(df)
-print("Registros despues eliminar duplicados codigo_unico_fuente: ", nrow_df)
+nrow_df_ident = len(df)
+n_duplicados = nrow_df_fin - nrow_df_ident
+print("Registros despues eliminar duplicados codigo_unico_fuente: ", nrow_df_ident)
 
 # Eliminar columnas temporales
 # #df.drop(columns=['rni*', 'nonmiss'], inplace=True)
 df.to_csv("archivos depurados/BD_CEV_JEP.csv", index=False)
 # 318
 df.to_sql(name="BD_CEV_JEP", con=engine, if_exists="replace", index=False)
+fecha_fin = datetime.now()
+
+log = {
+    "fecha_inicio": str(fecha_inicio),
+    "fecha_fin": str(fecha_fin),
+    "tiempo_ejecucion": str(fecha_fin - fecha_inicio),
+    'filas_iniciales_df': nrow_df_ini,
+    'filas_final_df': nrow_df_fin,
+    'filas_df_ident': nrow_df_ident,
+    'filas_df_no_ident': nrow_df_no_ident,
+    'n_duplicados': n_duplicados,
+}
+
+with open('log/resultado_df_cev_jep.yaml', 'w') as file:
+    yaml.dump(log, file)

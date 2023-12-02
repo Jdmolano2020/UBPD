@@ -667,5 +667,5 @@ log = {
 }
 
 # Guardar el log en un archivo YAML
-with open('log/resultado_cnmh.yaml', 'w') as file:
+with open('log/resultado_cnmh_df.yaml', 'w') as file:
     yaml.dump(log, file)

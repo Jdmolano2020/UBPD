@@ -4,7 +4,6 @@
 # Fecha: 21/06/2023
 ##
 #
-
 ###################################################
 # Cambia el path base intentando leer desde los parametros de invocacion
 
@@ -561,13 +560,8 @@ n_duplicados = n_1 - len(cnmh)
 # Excluir víctimas indirectas
 n_2 = len(cnmh)
 cnmh = cnmh[~cnmh['iden_pertenenciaetnica'].isin(['VICTIMA INDIRECTA'])]
-# Contar víctimas indirectas excluidas
-n_indirectas = n_2 - len(cnmh)
-# Excluir personas jurídicas
 n_3 = len(cnmh)
 cnmh = cnmh[~cnmh['tipo_documento'].isin(['PERSONA JURIDICA'])]
-# Contar personas jurídicas excluidas
-n_juridicas = n_3 - len(cnmh)
 # Crear una lista con los campos requeridos para la comparación de nombres
 campos_requeridos = ['id_registro', 'tabla_origen', 'codigo_unico_fuente',
                      'nombre_completo', 'primer_nombre', 'segundo_nombre',
@@ -635,16 +629,14 @@ log = {
     "fecha_inicio": str(fecha_inicio),
     "fecha_fin": str(fecha_fin),
     "tiempo_ejecucion": str(fecha_fin - fecha_inicio),
-    "n_casos": n_casos,  # Debes definir n_casos antes de esta parte
-    "n_personas": n_personas,  # Debes definir n_personas antes de esta parte
+    "n_casos": n_casos,
+    "n_personas": n_personas,
     "n_casos_sin_personas": n_casos_sin_personas,
     'filas_iniciales_cnmh': nrow_cnmh,
     'filas_final_cnmh': nrow_cnmh,
     'filas_cnmh_ident': nrow_cnmh_ident,
     'filas_cnmh_no_ident': nrow_cnmh_no_ident,
     'n_duplicados': n_duplicados,
-    'n_indirectas': n_indirectas,
-    'n_juridicas': n_juridicas
 }
 
 with open('log/resultado_cnmh_se.yaml', 'w') as file:

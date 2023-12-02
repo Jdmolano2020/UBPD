@@ -1,6 +1,8 @@
 import os
 import json
 import time
+import datetime
+import yaml
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
@@ -60,7 +62,8 @@ engine = create_engine(db_url)
 query = f'SELECT * FROM {DB_DATABASE}.{DB_SCHEMA}.{DB_TABLE}'
 print(query)
 df = pd.read_sql_query(query, engine)
-
+nrow_df_ini = len(df)
+print("Registros despues cargue fuente: ", nrow_df_ini)
 # Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
 # if parametro_cantidad != "":
 #   limite = int(parametro_cantidad)
@@ -325,6 +328,7 @@ df['situacion_actual_des'] = np.where(
 #  a otras entidades)
 # Crear una nueva columna 'non_miss' que cuenta la cantidad
 # de columnas no nulas para cada fila
+nrow_df_fin = len(df)
 df['non_miss'] = df[['primer_nombre', 'segundo_nombre',
                      'primer_apellido',
                      'segundo_apellido']].count(axis=1)
@@ -460,17 +464,16 @@ df.loc[(df['situacion_actual_des'] == "Anulado"), 'rni'] = 1
 
 # Guardar las filas marcadas como rni en un archivo
 df_rni = df[df['rni'] == 1]
-
+nrow_df_no_ident = len(df_rni)
 # #df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
-
-ni_file_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_INML_CAD_PNI.csv")
-df_rni.to_csv(ni_file_path, index=False)
-
-#df_rni.to_sql('BD_INML_CAD_PNI', con=engine, if_exists='replace', index=False)
-# #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False, delimiter='#')
+chunk_size = 1000  # ajusta el tamaño según tu necesidad
+df_rni.to_sql('BD_INML_CAD_PNI', con=engine, if_exists='replace', index=False,
+              chunksize=chunk_size)
+# #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False)
 # Eliminar las filas marcadas como rni del DataFrame original
 df = df[df['rni'] == 0]
 nrow_df = len(df)
+nrow_df_ident = nrow_df
 print("Registros despues eliminar RNI:", nrow_df)
 df.drop(columns=['non_miss', 'rni'], inplace=True)
 
@@ -501,20 +504,26 @@ df.sort_values(by=['codigo_unico_fuente', 'documento', 'non_miss'],
                ascending=[True, True, True], inplace=True)
 # Mantener solo el primer registro para cada 'codigo_unico_fuente'
 df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first', inplace=True)
-nrow_df = len(df)
+nrow_df_ident = len(df)
+n_duplicados = nrow_df_ini - nrow_df_ident
 print("Registros despues eliminar duplicados por codigo_unico_fuente:",
-      nrow_df)
-
-BD_INML_CAD_file_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_INML_CAD.csv")
-df.to_csv(BD_INML_CAD_file_path, index=False)
-
-#df.to_sql('BD_INML_CAD', con=engine, if_exists='replace', index=False)
-
+      nrow_df_ident)
+# df.to_sql('BD_INML_CAD', con=engine, if_exists='replace', index=False)
+df.to_sql('BD_INML_CAD', con=engine, if_exists='replace', index=False,
+          chunksize=chunk_size)
 # #df.to_stata("archivos depurados/BD_ICMP.dta", index=False)
+fecha_fin = datetime.now()
 
-end_time = time.time()
+log = {
+    "fecha_inicio": str(start_time),
+    "fecha_fin": str(fecha_fin),
+    "tiempo_ejecucion": str(fecha_fin - start_time),
+    'filas_iniciales_df': nrow_df_ini,
+    'filas_final_df': nrow_df_fin,
+    'filas_df_ident': nrow_df_ident,
+    'filas_df_no_ident': nrow_df_no_ident,
+    'n_duplicados': n_duplicados,
+}
 
-# Calcula el tiempo transcurrido
-elapsed_time = end_time - start_time
-
-print(f"Tiempo transcurrido: {elapsed_time/60} segundos")
+with open('log/resultado_df_inml_cad.yaml', 'w') as file:
+    yaml.dump(log, file)

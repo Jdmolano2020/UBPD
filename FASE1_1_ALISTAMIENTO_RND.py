@@ -2,6 +2,8 @@ import os
 from sqlalchemy import create_engine
 import pandas as pd
 import numpy as np
+from datetime import datetime
+import yaml
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
 import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC
@@ -45,12 +47,14 @@ encoding = "ISO-8859-1"
 # 1. Conexión al repositorio de información (Omitir esta sección en Python)
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
+fecha_inicio = datetime.now()
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos
 query = "EXECUTE CONSULTA_INML_DES"
 df = pd.read_sql_query(query, engine)
+nrow_df_ini = len(df)
 # Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
 if parametro_cantidad != "":
     limite = int(parametro_cantidad)
@@ -338,6 +342,7 @@ df['situacion_actual_des'] = df['situacion_actual_des'].replace(
 #  a otras entidades)
 # Crear una nueva columna 'non_miss' que cuenta la cantidad
 # de columnas no nulas para cada fila
+nrow_df_fin = len(df)
 df['non_miss'] = df[['primer_nombre', 'segundo_nombre',
                      'primer_apellido',
                      'segundo_apellido']].count(axis=1)
@@ -475,7 +480,7 @@ df.loc[(df['clasificacion_desaparicion'] == "DESASTRE NATURAL") |
 
 # Guardar las filas marcadas como rni en un archivo
 df_rni = df[df['rni'] == 1]
-
+nrow_df_no_ident = len(df_rni)
 # #df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
 df_rni.to_sql('BD_INML_RND_PNI', con=engine, if_exists='replace', index=False)
 # #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False)
@@ -525,9 +530,23 @@ df.sort_values(by=['codigo_unico_fuente', 'documento', 'non_miss'],
                ascending=[True, True], inplace=True)
 # Mantener solo el primer registro para cada 'codigo_unico_fuente'
 df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first', inplace=True)
-nrow_df = len(df)
+nrow_df_ident = len(df)
+n_duplicados = nrow_df_ini - nrow_df_ident
 print("Registros despues eliminar duplicados por codigo_unico_fuente:",
-      nrow_df)
+      nrow_df_ident)
 df.to_sql('BD_INML_RND', con=engine, if_exists='replace', index=False)
+fecha_fin = datetime.now()
 
-# #df.to_stata("archivos depurados/BD_ICMP.dta", index=False)
+log = {
+    "fecha_inicio": str(fecha_inicio),
+    "fecha_fin": str(fecha_fin),
+    "tiempo_ejecucion": str(fecha_fin - fecha_inicio),
+    'filas_iniciales_df': nrow_df_ini,
+    'filas_final_df': nrow_df_fin,
+    'filas_df_ident': nrow_df_ident,
+    'filas_df_no_ident': nrow_df_no_ident,
+    'n_duplicados': n_duplicados,
+}
+
+with open('log/resultado_df_cev_jep.yaml', 'w') as file:
+    yaml.dump(log, file)

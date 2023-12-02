@@ -2,6 +2,8 @@ import os
 from sqlalchemy import create_engine
 import pandas as pd
 import numpy as np
+from datetime import datetime
+import yaml
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
 import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC
@@ -44,12 +46,15 @@ encoding = "ISO-8859-1"
 # 1. Conexión al repositorio de información (Omitir esta sección en Python)
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
+fecha_inicio = datetime.now()
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos
 query = "EXECUTE [dbo].[CONSULTA_V_ICMP]"
 df = pd.read_sql_query(query, engine)
+nrow_df_ini = len(df)
+print("Registros despues cargue fuente: ", nrow_df_ini)
 # Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
 if parametro_cantidad != "":
     limite = int(parametro_cantidad)
@@ -277,7 +282,7 @@ df.loc[condicion, 'edad'] = df.loc[condicion, 'edad_desaparicion_est']
 # 'inconsistencia_fechas'], inplace=True)
 # Limpiar valores en la columna 'situacion_actual_des'
 df['situacion_actual_des'] = df['situacion_actual_des'].fillna("")
-
+nrow_df_fin = len(df)
 
 # Identificación de registros que no refieren a personas individualizables
 # (datos almacenados en campos de identificación que refieren
@@ -421,7 +426,7 @@ df.loc[(df['primer_nombre'].isna()) &
        (df['fecha_nacimiento_dft'].isna()), 'rni'] = 1
 # Guardar las filas marcadas como rni en un archivo
 df_rni = df[df['rni'] == 1]
-
+nrow_df_no_ident = len(df_rni)
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(db_url)
 
@@ -430,6 +435,8 @@ df_rni.to_sql('BD_ICMP_PNI', con=engine, if_exists='replace', index=False)
 # #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False)
 # Eliminar las filas marcadas como rni del DataFrame original
 df = df[df['rni'] == 0]
+nrow_df_ident = len(df)
+print("Registros despues eliminar RNI:", nrow_df_ident)
 df.drop(columns=['non_miss', 'rni'], inplace=True)
 
 cols_to_clean = ['sexo', 'codigo_dane_departamento', 'departamento_ocurrencia',
@@ -463,7 +470,23 @@ df.sort_values(by=['codigo_unico_fuente',
                    'documento'], ascending=[True, True], inplace=True)
 # Mantener solo el primer registro para cada 'codigo_unico_fuente'
 df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first', inplace=True)
-
+nrow_df = len(df)
+n_duplicados = nrow_df_ident - nrow_df
 df.to_sql('BD_ICMP', con=engine, if_exists='replace', index=False)
 
 # #df.to_stata("archivos depurados/BD_ICMP.dta", index=False)
+fecha_fin = datetime.now()
+
+log = {
+    "fecha_inicio": str(fecha_inicio),
+    "fecha_fin": str(fecha_fin),
+    "tiempo_ejecucion": str(fecha_fin - fecha_inicio),
+    'filas_iniciales_df': nrow_df_ini,
+    'filas_final_df': nrow_df_fin,
+    'filas_df_ident': nrow_df_ident,
+    'filas_df_no_ident': nrow_df_no_ident,
+    'n_duplicados': n_duplicados,
+}
+
+with open('log/resultado_df_inml_cad.yaml', 'w') as file:
+    yaml.dump(log, file)

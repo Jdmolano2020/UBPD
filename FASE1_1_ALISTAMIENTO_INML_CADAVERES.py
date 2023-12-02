@@ -1,7 +1,9 @@
 import os
-from sqlalchemy import create_engine
+import json
+import time
 import pandas as pd
 import numpy as np
+from sqlalchemy import create_engine
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
 import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC
@@ -16,49 +18,62 @@ import homologacion.etnia
 import homologacion.nombre_completo
 
 
+
+start_time = time.time()
 def clean_text(text):
     if text is None or text.isna().any():
         text = text.astype(str)
     text = text.apply(homologacion.limpieza.normalize_text)
     return text
 
+with open('config.json') as config_file:
+    config = json.load(config_file)
 
-# parametros programa stata
-parametro_ruta = ""
-parametro_cantidad = ""
-# Establecer la ruta de trabajo
-ruta =  "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso"  # Cambia esto según tu directorio
+DIRECTORY_PATH = config['DIRECTORY_PATH']
+DB_SERVER = config['DB_SERVER']
+DB_USERNAME = config['DB_USERNAME']
+DB_PASSWORD = config['DB_PASSWORD']
 
-# Verificar si `1` es una cadena vacía y ajustar el directorio de trabajo
-# en consecuencia
-if parametro_ruta == "":
-    os.chdir(ruta)
-else:
-    os.chdir(parametro_ruta)
-# Borrar el archivo "fuentes secundarias\V_ICMP.dta"
-archivo_a_borrar = os.path.join("fuentes secundarias",
-                                "V_INML_CAD.dta")
-if os.path.exists(archivo_a_borrar):
-    os.remove(archivo_a_borrar)
+DB_DATABASE = "UNIVERSO_PDD"
+DB_SCHEMA = "dbo"
+DB_TABLE = "INMLCF_CAD_DATOS_DE_REGISTRO"
+
+archivo_a_borrar = os.path.join(DIRECTORY_PATH, "fuentes secundarias",
+                                "V_INML_CAD.csv")
+
+if DIRECTORY_PATH:
+    if os.path.exists(archivo_a_borrar):
+        os.remove(archivo_a_borrar)
+
+encoding = "ISO-8859-1"
+# La codificación ISO-8859-1
+
 # Configurar la codificación Unicode
 encoding = "ISO-8859-1"
 # 1. Conexión al repositorio de información (Omitir esta sección en Python)
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
+db_url = f'mssql+pyodbc://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}/{DB_DATABASE}?driver=ODBC+Driver+17+for+SQL+Server'
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos
-query = "SELECT * FROM INMLCF_CAD_DATOS_DE_REGISTRO"
+query = f'SELECT * FROM {DB_DATABASE}.{DB_SCHEMA}.{DB_TABLE}'
+print(query)
 df = pd.read_sql_query(query, engine)
+
 # Aplicar filtro si `2` no es una cadena vacía parametro cantidad registros
-if parametro_cantidad != "":
-    limite = int(parametro_cantidad)
-    df = df[df.index < limite]
+# if parametro_cantidad != "":
+#   limite = int(parametro_cantidad)
+ #   df = df[df.index < limite]
 # Guardar el DataFrame en un archivo
-archivo_csv = os.path.join("fuentes secundarias",
+
+archivo_csv = os.path.join(DIRECTORY_PATH, "fuentes secundarias",
                            "V_INML_CAD.csv")
 df.to_csv(archivo_csv, index=False)
+######################################################### 11 min
+df_copy=df.copy()
+###############################
+#df=df_copy.copy()
 # Cambiar directorio de trabajo
 # #os.chdir(os.path.join(ruta, "fuentes secundarias"))
 # Traducir la codificación Unicode
@@ -148,11 +163,13 @@ columnas_ordenadas = ['nombres', 'primer_apellido', 'segundo_apellido',
                       'fecha_hecho', 'numero_radicado']
 
 df = df.sort_values(by=columnas_ordenadas)
+#print(len(df)) 531620
 # Crear identificador único de registro
 df['duplicates_reg'] = df.duplicated()
 df = df[~df['duplicates_reg']]
 nrow_df = len(df)
 print("Registros despues eliminar duplicados: ", nrow_df)
+#531620
 # Renombrar una columna
 df.rename(columns={'numero_radicado': 'codigo_unico_fuente'}, inplace=True)
 # Origen de los datos
@@ -160,8 +177,10 @@ df['tabla_origen'] = 'INML_CAD'
 # Origen
 df['in_inml_cad'] = 1
 
-dane = pd.read_stata(
-    "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
+###################
+
+dane_file_path = os.path.join(DIRECTORY_PATH, "fuentes secundarias",  "tablas complementarias", "DIVIPOLA_municipios_122021.dta")
+dane = pd.read_stata(dane_file_path)
 
 variables_limpieza_dane = ["departamento", "municipio"]
 # Aplicar transformaciones a las columnas de tipo 'str'
@@ -186,7 +205,7 @@ df = pd.merge(df, dane, how='left',
                        'municipio_desaparicion'],
               right_on=['departamento', 'municipio'])
 
-dane_corregir = pd.read_csv(
+dane_corregir = pd.read_csv(DIRECTORY_PATH + 
     "fuentes secundarias/tablas complementarias/CorrecionMunicipioRnd.csv", sep = ";")
 df = pd.merge(df, dane_corregir, how='left',
               left_on=['departamento_desaparicion',
@@ -443,8 +462,12 @@ df.loc[(df['situacion_actual_des'] == "Anulado"), 'rni'] = 1
 df_rni = df[df['rni'] == 1]
 
 # #df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
-df_rni.to_sql('BD_INML_CAD_PNI', con=engine, if_exists='replace', index=False)
-# #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False)
+
+ni_file_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_INML_CAD_PNI.csv")
+df_rni.to_csv(ni_file_path, index=False)
+
+#df_rni.to_sql('BD_INML_CAD_PNI', con=engine, if_exists='replace', index=False)
+# #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False, delimiter='#')
 # Eliminar las filas marcadas como rni del DataFrame original
 df = df[df['rni'] == 0]
 nrow_df = len(df)
@@ -481,8 +504,17 @@ df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first', inplace=True)
 nrow_df = len(df)
 print("Registros despues eliminar duplicados por codigo_unico_fuente:",
       nrow_df)
-df.to_sql('BD_INML_CAD', con=engine, if_exists='replace', index=False)
+
+BD_INML_CAD_file_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_INML_CAD.csv")
+df.to_csv(BD_INML_CAD_file_path, index=False)
+
+#df.to_sql('BD_INML_CAD', con=engine, if_exists='replace', index=False)
 
 # #df.to_stata("archivos depurados/BD_ICMP.dta", index=False)
 
+end_time = time.time()
 
+# Calcula el tiempo transcurrido
+elapsed_time = end_time - start_time
+
+print(f"Tiempo transcurrido: {elapsed_time/60} segundos")

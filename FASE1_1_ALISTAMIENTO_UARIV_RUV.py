@@ -197,7 +197,7 @@ df_uariv = df_uariv[df_uariv['codigo_dane_municipio'].isin(dane['codigo_dane_mun
 corrige_fecha_ocurrencia(df_uariv) 
 
 ######################################################### 11 min
-#df_uariv_copy=df_uariv.copy()
+df_uariv_copy=df_uariv.copy()
 ###############################
 #df_uariv=df_uariv_copy.copy()
 
@@ -252,7 +252,7 @@ df_uariv.drop('tmp', axis=1, inplace=True)
 
 pres_resp_cols = df_uariv.filter(like='pres_resp_')
 pres_resp_sum = pres_resp_cols.sum()
-#############################################
+
 # estandarizar tipo de hecho
 other_facts = ["HOMICIDIO",
                 "ACTO TERRORISTA ATENTADOS COMBATES ENFRENTAM",
@@ -281,7 +281,7 @@ df_uariv["TH_RU"] = np.where(df_uariv["VILB_HECHO"] == "VINCULACION DE NINOS NIN
 df_uariv["TH_OTRO"] = np.where(df_uariv["VILB_HECHO"].isin(other_facts), 1,
                            np.where(df_uariv["VILB_HECHO"].isna(), np.nan,
                                     np.where(df_uariv["VILB_HECHO"] == "SIN INFORMACION", np.nan, 0)))
-#######################nov 30
+
 #relato 
 # Asignación de valores a las columnas
 df_uariv["descripcion_relato"] = ""
@@ -291,25 +291,23 @@ df_uariv["situacion_actual_des"] = "Sin informacion"
 # Normalización de nombres y apellidos")
 #Se corrige los nombres de la presunta víctima
 # se arma nombre completo
-df_uariv[['VILB_PRIMER_NOMBRE',
-    'VILB_SEGUNDO_NOMBRE',
-    'VILB_PRIMER_APELLIDO',
-    'VILB_SEGUNDO_APELLIDO']] = df_uariv['nombre_completo'].apply(
-          lambda x: pd.Series(
-              homologacion.nombre_completo.limpiar_nombre_completo(x)))
-        
-print(len(df_uariv))
-muestra = df_uariv.sample(n=10000)
-        
-        
-homologacion.nombres.nombres_validos (df_uariv , primer_nombre = 'VILB_PRIMER_NOMBRE',
-                 segundo_nombre = 'VILB_SEGUNDO_NOMBRE',
-                 primer_apellido = 'VILB_PRIMER_APELLIDO',
-                 segundo_apellido = 'VILB_SEGUNDO_APELLIDO',
-                 nombre_completo = 'nombre_completo')
+# df_uariv[['VILB_PRIMER_NOMBRE',
+#     'VILB_SEGUNDO_NOMBRE',
+#     'VILB_PRIMER_APELLIDO',
+#     'VILB_SEGUNDO_APELLIDO']] = df_uariv['VILB_NOMBRECOMPLETO'].apply(
+#           lambda x: pd.Series(
+#               homologacion.nombre_completo.limpiar_nombre_completo(x)))
 
+        
+homologacion.nombres.nombres_validos (df_uariv , primer_nombre = 'VILB_PRIMERNOMBRE',
+                 segundo_nombre = 'VILB_SEGUNDONOMBRE',
+                 primer_apellido = 'VILB_PRIMERAPELLIDO',
+                 segundo_apellido = 'VILB_SEGUNDOAPELLIDO',
+                 nombre_completo = 'VILB_NOMBRECOMPLETO')
+muestra = df_uariv.sample(n=10000)
+#######################dic 2
 # Documento de identificación
-homologacion.documento.documento_valida (df_uariv, documento = 'documento')
+homologacion.documento.documento_valida (df_uariv, documento = 'VILB_DOCUMENTO')
 
 #implementaciOn de las reglas de la registraduria
 # Si es CC o TI solo deben ser numéricos

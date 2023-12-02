@@ -449,7 +449,9 @@ df.loc[(df['situacion_actual_des'] == "Anulado"), 'rni'] = 1
 df_rni = df[df['rni'] == 1]
 nrow_df_no_ident = len(df_rni)
 # #df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
-df_rni.to_sql('BD_INML_CAD_PNI', con=engine, if_exists='replace', index=False)
+chunk_size = 1000  # ajusta el tamaño según tu necesidad
+df_rni.to_sql('BD_INML_CAD_PNI', con=engine, if_exists='replace', index=False,
+              chunksize=chunk_size)
 # #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False)
 # Eliminar las filas marcadas como rni del DataFrame original
 df = df[df['rni'] == 0]
@@ -489,8 +491,9 @@ nrow_df_ident = len(df)
 n_duplicados = nrow_df_ini - nrow_df_ident
 print("Registros despues eliminar duplicados por codigo_unico_fuente:",
       nrow_df_ident)
-df.to_sql('BD_INML_CAD', con=engine, if_exists='replace', index=False)
-
+# df.to_sql('BD_INML_CAD', con=engine, if_exists='replace', index=False)
+df.to_sql('BD_INML_CAD', con=engine, if_exists='replace', index=False,
+          chunksize=chunk_size)
 # #df.to_stata("archivos depurados/BD_ICMP.dta", index=False)
 fecha_fin = datetime.now()
 

@@ -646,5 +646,3 @@ log = {
 
 with open("log/resultado_cnmh_ru.yaml", "w") as yaml_file:
     yaml.dump(log, yaml_file)
-
-

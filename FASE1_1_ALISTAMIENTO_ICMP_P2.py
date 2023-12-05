@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import yaml
+import json
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
 import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC
@@ -24,11 +25,22 @@ def clean_text(text):
     return text
 
 
+# import config
+with open('config.json') as config_file:
+    config = json.load(config_file)
+
+directory_path = config['DIRECTORY_PATH']
+db_server = config['DB_SERVER']
+db_username = config['DB_USERNAME']
+db_password = config['DB_PASSWORD']
+
+db_database = "ubpd_base"
+
 # parametros programa stata
 parametro_ruta = ""
 parametro_cantidad = ""
 # Establecer la ruta de trabajo
-ruta =  "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso"  # Cambia esto según tu directorio
+ruta = directory_path
 
 # Verificar si `1` es una cadena vacía y ajustar el directorio de trabajo
 # en consecuencia
@@ -47,7 +59,7 @@ encoding = "ISO-8859-1"
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
 fecha_inicio = datetime.now()
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
+db_url = f'mssql+pyodbc://{db_username}:{db_password}@{db_server}/{db_database}?driver=ODBC+Driver+17+for+SQL+Server'
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos
@@ -212,6 +224,7 @@ homologacion.nombres.nombres_validos(df, primer_nombre='primer_nombre',
                                      nombre_completo='nombre_completo')
 
 # Documento de identificación
+df['documento'].fillna('0', inplace=True)
 homologacion.documento.documento_valida(df, documento='documento')
 # Pertenencia_etnica [NARP; INDIGENA; RROM; MESTIZO]
 # Renombrar la columna
@@ -431,7 +444,9 @@ db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base
 engine = create_engine(db_url)
 
 # #df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
-df_rni.to_sql('BD_ICMP_PNI', con=engine, if_exists='replace', index=False)
+chunk_size = 1000  # ajusta el tamaño según tu necesidad
+df_rni.to_sql('BD_ICMP_PNI', con=engine, if_exists='replace', index=False,
+              chunksize=chunk_size)
 # #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False)
 # Eliminar las filas marcadas como rni del DataFrame original
 df = df[df['rni'] == 0]
@@ -472,7 +487,8 @@ df.sort_values(by=['codigo_unico_fuente',
 df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first', inplace=True)
 nrow_df = len(df)
 n_duplicados = nrow_df_ident - nrow_df
-df.to_sql('BD_ICMP', con=engine, if_exists='replace', index=False)
+df.to_sql('BD_ICMP', con=engine, if_exists='replace', index=False,
+          chunksize=chunk_size)
 
 # #df.to_stata("archivos depurados/BD_ICMP.dta", index=False)
 fecha_fin = datetime.now()
@@ -488,5 +504,5 @@ log = {
     'n_duplicados': n_duplicados,
 }
 
-with open('log/resultado_df_inml_cad.yaml', 'w') as file:
+with open('log/resultado_df_icmp.yaml', 'w') as file:
     yaml.dump(log, file)

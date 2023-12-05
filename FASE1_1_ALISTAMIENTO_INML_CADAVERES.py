@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import yaml
+import json
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
 import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC
@@ -25,11 +26,22 @@ def clean_text(text):
     return text
 
 
+# import config
+with open('config.json') as config_file:
+    config = json.load(config_file)
+
+directory_path = config['DIRECTORY_PATH']
+db_server = config['DB_SERVER']
+db_username = config['DB_USERNAME']
+db_password = config['DB_PASSWORD']
+
+db_database = "ubpd_base"
+
 # parametros programa stata
 parametro_ruta = ""
 parametro_cantidad = ""
 # Establecer la ruta de trabajo
-ruta =  "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso"  # Cambia esto según tu directorio
+ruta = directory_path
 
 # Verificar si `1` es una cadena vacía y ajustar el directorio de trabajo
 # en consecuencia
@@ -48,7 +60,7 @@ encoding = "ISO-8859-1"
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
 fecha_inicio = datetime.now()
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
+db_url = f'mssql+pyodbc://{db_username}:{db_password}@{db_server}/{db_database}?driver=ODBC+Driver+17+for+SQL+Server'
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos

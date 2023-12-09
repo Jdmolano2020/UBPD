@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import yaml
+import json
 import homologacion.limpieza
 import homologacion.fecha
 import homologacion.nombres
@@ -24,11 +25,23 @@ def concat_values(*args):
     return ' '.join(arg for arg in args if arg.strip())
 
 
+# import config
+with open('config.json') as config_file:
+    config = json.load(config_file)
+
+directory_path = config['DIRECTORY_PATH']
+db_server = config['DB_SERVER']
+db_username = config['DB_USERNAME']
+db_password = config['DB_PASSWORD']
+
+db_database = "ubpd_base"
+
 # parametros programa stata
 parametro_ruta = ""
 parametro_cantidad = ""
 # Establecer la ruta de trabajo
-ruta = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso" 
+# ruta = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso" 
+ruta = directory_path
 # Cambia esto según tu directorio
 
 # Verificar si `1` es una cadena vacía y ajustar el directorio de trabajo
@@ -49,7 +62,8 @@ encoding = "ISO-8859-1"
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
 fecha_inicio = datetime.now()
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
+# db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
+db_url = f'mssql+pyodbc://{db_username}:{db_password}@{db_server}/{db_database}?driver=ODBC+Driver+17+for+SQL+Server'
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos
@@ -440,13 +454,15 @@ print("Registros despues ordenar: ", nrow_df)
 df = df.drop_duplicates(subset=['codigo_unico_fuente'], keep='first')
 nrow_df_ident = len(df)
 n_duplicados = nrow_df_fin - nrow_df_ident
-print("Registros despues eliminar duplicados codigo_unico_fuente: ", nrow_df_ident)
+print("Registros despues eliminar duplicados codigo_unico_fuente: ",
+      nrow_df_ident)
 
 # Eliminar columnas temporales
 # #df.drop(columns=['rni*', 'nonmiss'], inplace=True)
-df.to_csv("archivos depurados/BD_CEV_JEP.csv", index=False)
-# 318
-df.to_sql(name="BD_CEV_JEP", con=engine, if_exists="replace", index=False)
+# df.to_csv("archivos depurados/BD_CEV_JEP.csv", index=False)
+chunk_size = 1000  # ajusta el tamaño según tu necesidad
+df.to_sql(name="BD_CEV_JEP", con=engine, if_exists="replace", index=False,
+          chunksize=chunk_size)
 fecha_fin = datetime.now()
 
 log = {

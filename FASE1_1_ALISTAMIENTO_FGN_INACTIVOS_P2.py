@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import yaml
+import json
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
 import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
 import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC
@@ -24,11 +25,22 @@ def clean_text(text):
     return text
 
 
+# import config
+with open('config.json') as config_file:
+    config = json.load(config_file)
+
+directory_path = config['DIRECTORY_PATH']
+db_server = config['DB_SERVER']
+db_username = config['DB_USERNAME']
+db_password = config['DB_PASSWORD']
+
+db_database = "ubpd_base"
+
 # parametros programa stata
 parametro_ruta = ""
 parametro_cantidad = ""
 # Establecer la ruta de trabajo
-ruta =  "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso"
+ruta =  directory_path
 
 # Verificar si `1` es una cadena vacía y ajustar el directorio de trabajo
 # en consecuencia
@@ -47,7 +59,7 @@ encoding = "ISO-8859-1"
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
 fecha_inicio = datetime.now()
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
+db_url = f'mssql+pyodbc://{db_username}:{db_password}@{db_server}/{db_database}?driver=ODBC+Driver+17+for+SQL+Server'
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos
@@ -245,8 +257,12 @@ homologacion.nombres.nombres_validos(df, primer_nombre='primer_nombre',
 # Documento
 # Eliminar símbolos y caracteres especiales
 # Convertir todos los caracteres a mayúsculas
+df['documento'].fillna('0', inplace=True)
 homologacion.documento.documento_valida(df, documento='documento')
 # Pertenencia_etnica [NARP; INDIGENA; RROM; MESTIZO]
+
+df.rename(columns={'iden_pertenenciaetnica_': 'iden_pertenenciaetnica'},
+          inplace=True)
 homologacion.etnia.etnia_valida(df, etnia='iden_pertenenciaetnica')
 # Fecha de nacimiento- Validar rango
 # Eliminar columnas que empiezan con "anio_nacimiento"
@@ -304,8 +320,12 @@ df['non_miss'] = df[['primer_nombre',
                      'segundo_nombre',
                      'primer_apellido', 'segundo_apellido']].count(axis=1)
 # Calcular la variable "rni" en función de las condiciones especificadas
-df['rni'] = (
-    df['non_miss'] < 2) | (df['primer_nombre'] == "") | (df['primer_apellido'] == "") | ((df['codigo_dane_departamento'] == "") & (df['fecha_ocur_anio'] == "") & (df['documento'] == ""))
+df['rni'] = ((df['non_miss'] < 2) |
+             (df['primer_nombre'] == "") |
+             (df['primer_apellido'] == "") |
+             ((df['codigo_dane_departamento'] == "") &
+              (df['fecha_ocur_anio'] == "") &
+              (df['documento'] == "")))
 # Calcular "rni_" y "N" por grupo de "codigo_unico_fuente"
 df['rni_'] = df.groupby('codigo_unico_fuente')['rni'].transform('sum')
 df['N'] = df.groupby(
@@ -315,40 +335,52 @@ df_rni = df[df['rni'] == 1].copy()
 nrow_df_no_ident = len(df_rni)
 # Guardar resultados en la base de datos de destino
 db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
-engine = create_engine(db_url)# Escribir los DataFrames en las tablas correspondientes en la base de datos
-
+engine = create_engine(db_url)
+# Escribir los DataFrames en las tablas correspondientes en la base de datos
 # #df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
-df_rni.to_sql('BD_FGN_INACTIVOS_PNI', con=engine, if_exists='replace', index=False)
+chunk_size = 1000  # ajusta el tamaño según tu necesidad
+df_rni.to_sql('BD_FGN_INACTIVOS_PNI', con=engine, if_exists='replace',
+              index=False, chunksize=chunk_size)
 
 
-# Eliminar registros no individualizables o sin suficientes datos para la integración
+# Eliminar registros no individualizables o sin suficientes datos
+# para la integración
 df = df[df['rni_'] != df['N']]
 nrow_df_ident = nrow_df
 # Eliminar columnas auxiliares
 df.drop(columns=['non_miss', 'rni_', 'N'], inplace=True)
 
-cols_to_clean = ['sexo','codigo_dane_departamento','departamento_ocurrencia',
-                 'codigo_dane_municipio','municipio_ocurrencia'
+cols_to_clean = ['sexo', 'codigo_dane_departamento', 'departamento_ocurrencia',
+                 'codigo_dane_municipio', 'municipio_ocurrencia'
                  ]
 for col in cols_to_clean:
     df[col] = df[col].fillna("")
-dfr=df[df['codigo_unico_fuente']=='des7656']    
-# 5. Identificación de registros/filas únicas	
+# 5. Identificación de registros/filas únicas
 # Seleccionar las columnas especificadas
-columns_to_keep = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre', 'segundo_nombre',
-                   'primer_apellido', 'segundo_apellido', 'documento', 'sexo', 'iden_pertenenciaetnica', 'edad',
-                   'fecha_desaparicion', 'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 'pais_ocurrencia',
-                   'dia_nacimiento', 'mes_nacimiento',  'anio_nacimiento',  'fecha_nacimiento',
-                   'codigo_dane_departamento', 'departamento_ocurrencia', 'codigo_dane_municipio', 'municipio_ocurrencia',
+columns_to_keep = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo',
+                   'primer_nombre', 'segundo_nombre', 'primer_apellido',
+                   'segundo_apellido', 'documento', 'sexo',
+                   'iden_pertenenciaetnica', 'edad', 'fecha_desaparicion',
+                   'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia',
+                   'pais_ocurrencia', 'dia_nacimiento', 'mes_nacimiento',
+                   'anio_nacimiento',  'fecha_nacimiento',
+                   'codigo_dane_departamento', 'departamento_ocurrencia',
+                   'codigo_dane_municipio', 'municipio_ocurrencia',
                    'pres_resp_paramilitares',
-                   'pres_resp_grupos_posdesmov', 'pres_resp_agentes_estatales', 'pres_resp_guerr_farc',
-                   'pres_resp_guerr_eln', 'pres_resp_guerr_otra', 'pres_resp_otro',
-                   'TH_DF', 'TH_SE', 'TH_RU', 'TH_OTRO', 'situacion_actual_des', 'descripcion_relato', 'in_fgn_inactivos']
+                   'pres_resp_grupos_posdesmov', 'pres_resp_agentes_estatales',
+                   'pres_resp_guerr_farc',
+                   'pres_resp_guerr_eln', 'pres_resp_guerr_otra',
+                   'pres_resp_otro',
+                   'TH_DF', 'TH_SE', 'TH_RU', 'TH_OTRO',
+                   'situacion_actual_des', 'descripcion_relato',
+                   'in_fgn_inactivos']
 
 df = df[columns_to_keep]
 # Ordenar el DataFrame
-df.sort_values(by=['codigo_unico_fuente', 'documento'], ascending=[False, False], inplace=True)
-# Mantener el registro más completo por cada persona identificada de forma única
+df.sort_values(by=['codigo_unico_fuente', 'documento'],
+               ascending=[False, False], inplace=True)
+# Mantener el registro más completo por cada persona identificada de forma
+# única
 df.drop_duplicates(subset='codigo_unico_fuente', keep='first', inplace=True)
 nrow_df = len(df)
 n_duplicados = nrow_df_ident - nrow_df
@@ -356,7 +388,8 @@ n_duplicados = nrow_df_ident - nrow_df
 # df.drop(columns=['situacion_actual_des'], inplace=True)
 # Guardar el DataFrame en un archivo
 # #df.to_stata("archivos depurados/BD_FGN_INACTIVOS.dta")
-df.to_sql('BD_FGN_INACTIVOS', con=engine, if_exists='replace', index=False)
+df.to_sql('BD_FGN_INACTIVOS', con=engine, if_exists='replace', index=False,
+          chunksize=chunk_size)
 # Contar el número de registros
 count = len(df)
 # Crear una variable de grupo 'g' basada en 'codigo_unico_fuente'
@@ -378,5 +411,5 @@ log = {
     'filas_df_no_ident': nrow_df_no_ident,
     'n_duplicados': n_duplicados,
 }
-with open('log/resultado_df_inml_cad.yaml', 'w') as file:
+with open('log/resultado_df_fgn_inactivos.yaml', 'w') as file:
     yaml.dump(log, file)

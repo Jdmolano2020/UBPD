@@ -16,6 +16,7 @@ from datetime import datetime
 from sqlalchemy import create_engine
 import numpy as np
 import yaml
+import json
 import homologacion.limpieza
 import homologacion.fecha
 import homologacion.nombres
@@ -36,6 +37,16 @@ def funcion_hash(row):
     return hashlib.sha1(str(row).encode()).hexdigest()
 
 
+# import config
+with open('config.json') as config_file:
+    config = json.load(config_file)
+
+directory_path = config['DIRECTORY_PATH']
+db_server = config['DB_SERVER']
+db_username = config['DB_USERNAME']
+db_password = config['DB_PASSWORD']
+
+db_database = "ubpd_base"
 # Limpiar todas las variables
 # =============================================================================
 # for variable in list(locals()):
@@ -48,7 +59,7 @@ if len(args) > 1:
     ruta_base = args[1]
 else:
     # En caso contrario, define una ruta por defecto
-    ruta_base = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso"
+    ruta_base = directory_path
 # Cambiar el directorio de trabajo a la ruta base
 os.chdir(ruta_base)
 n_sample = ""
@@ -57,7 +68,7 @@ if len(args) > 2:
     n_sample = args[2]
 # 32
 # Establecer la ruta base
-ruta_base = "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso"
+ruta_base = directory_path
 
 # Obtener la fecha y hora actual
 fecha_inicio = datetime.now()
@@ -88,7 +99,7 @@ dane_depts = dane[['codigo_dane_departamento',
                    'departamento_ocurrencia']].drop_duplicates()
 # Configurar la conexión a la base de datos
 # (asegúrate de proporcionar los detalles correctos)
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
+db_url = f'mssql+pyodbc://{db_username}:{db_password}@{db_server}/{db_database}?driver=ODBC+Driver+17+for+SQL+Server'
 engine = create_engine(db_url)
 # Crear la consulta SQL
 n_sample_p = f"top({n_sample})" if n_sample != "" else ""
@@ -614,12 +625,12 @@ nrow_cnmh = len(cnmh)
 nrow_cnmh_ident = len(cnmh_ident)
 nrow_cnmh_no_ident = len(cnmh_no_ident)
 # Guardar resultados en la base de datos de destino
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
-engine = create_engine(db_url)
+chunk_size = 1000  # ajusta el tamaño según tu necesidad
 # Escribir los DataFrames en las tablas correspondientes en la base de datos
-cnmh_ident.to_sql('CNMH_SE', con=engine, if_exists='replace', index=False)
+cnmh_ident.to_sql('CNMH_SE', con=engine, if_exists='replace', index=False,
+                  chunksize=chunk_size)
 cnmh_no_ident.to_sql('CNMH_SE_PNI', con=engine, if_exists='replace',
-                     index=False)
+                     index=False, chunksize=chunk_size)
 # Cerrar la conexión a la base de datos
 # Registrar información de ejecución
 

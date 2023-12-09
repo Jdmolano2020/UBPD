@@ -6,6 +6,15 @@ import yaml
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
+from datetime import datetime
+import yaml
+import json
+import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_PARAMILITARES
+import FASE1_HOMOLOGACION_CAMPO_FUERZA_PUBLICA_Y_AGENTES_DEL_ESTADO
+import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_FARC
+import FASE1_HOMOLOGACION_CAMPO_BANDAS_CRIMINALES
+import FASE1_HOMOLOGACION_CAMPO_ESTRUCTURA_ELN
+import FASE1_HOMOLOGACION_CAMPO_OTRAS_GUERRILLAS
 import homologacion.limpieza
 import homologacion.fecha
 import homologacion.nombres
@@ -49,6 +58,7 @@ encoding = "ISO-8859-1"
 # 1. Conexión al repositorio de información (Omitir esta sección en Python)
 # 2. Cargue de datos y creación de id_registro (Omitir esta sección en Python)
 # Establecer la conexión ODBC
+
 db_url = f'mssql+pyodbc://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}\\{DB_INSTANCE}/{DB_DATABASE}?driver=ODBC+Driver+17+for+SQL+Server'
 engine = create_engine(db_url)
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)

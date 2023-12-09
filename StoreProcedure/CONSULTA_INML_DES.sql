@@ -15,7 +15,7 @@ GO
 
 
 -- =============================================
--- Author:		Juan Daniel Molano Castro
+-- Author:		Juan Manuel Maestre JImenez
 -- Create date: 27/11/2023
 -- Description:	Realiza la consulta de las personas desaparecidas de la fuente INML_DES
 -- =============================================

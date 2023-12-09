@@ -64,16 +64,14 @@ db_url = f'mssql+pyodbc://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}\\{DB_INSTANCE}
 engine = create_engine(db_url)
 # Cargar datos desde la base de datos
 
-sql_query = f"SELECT * FROM {DB_DATABASE}.{DB_SCHEMA}.{DB_TABLE} WITH (NOLOCK) WHERE NOT([S_DARE_ENTIDAD_REGISTRA] = 'UNIDAD DE BUSQUEDA DE PERSONAS DESAPARECIDAS' AND [S_DARE_USUARIO_REGISTRA] = 'USUARIOS  _UBPD')"
-df_rnd = pd.read_sql(sql_query, engine)
-########################
+########################TOTAL EN LA TABLA 249848
 
 # JEP-CEV: Resultados integración de información (CA_DESAPARICION)
 # Cargue de datos
-#query = "EXECUTE CONSULTA_INML_DES"
-#df = pd.read_sql_query(query, engine)
-nrow_df_rnd_ini = len(df_rnd)
-print(nrow_df_rnd_ini)
+query = "EXECUTE CONSULTA_INML_DES"
+df_rnd = pd.read_sql_query(query, engine)
+#185778
+
 # Guardar el DataFrame en un archivo
 archivo_csv = os.path.join("fuentes secundarias",
                            "V_INML_RND.csv")

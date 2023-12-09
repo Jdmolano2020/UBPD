@@ -2,6 +2,7 @@ import os
 import json
 import time
 import subprocess
+import pyodbc
 import pandas as pd
 import numpy as np
 import homologacion.etnia
@@ -36,6 +37,7 @@ with open('config.json') as config_file:
 
 DIRECTORY_PATH = config['DIRECTORY_PATH']
 DB_SERVER = config['DB_SERVER']
+DB_INSTANCE = config['DB_INSTANCE']
 DB_USERNAME = config['DB_USERNAME']
 DB_PASSWORD = config['DB_PASSWORD']
 
@@ -44,11 +46,9 @@ DB_SCHEMA = "orq_salida"
 DB_TABLE = "RSB"
 
 # Cambiar de directorio
-
 archivo_a_borrar = os.path.join("fuentes secundarias",
                                 "V_UBPD_RSB.csv")
 
-    
 if DIRECTORY_PATH:
     if os.path.exists(archivo_a_borrar):
         os.remove(archivo_a_borrar)
@@ -58,12 +58,13 @@ encoding = "ISO-8859-1"
 
 # Conexión a la base de datos usando pyodbc
 # Configurar la cadena de conexion
-db_url = f'mssql+pyodbc://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}/{DB_DATABASE}?driver=ODBC+Driver+17+for+SQL+Server'
+db_url = f'mssql+pyodbc://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}\\{DB_INSTANCE}/{DB_DATABASE}?driver=ODBC+Driver+17+for+SQL+Server'
 
 # Conectar a la BBDD
 engine = create_engine(db_url)
 # Cargar datos desde la base de datos
-sql_query = f'SELECT * FROM {DB_DATABASE}.{DB_SCHEMA}.{DB_TABLE}'
+
+sql_query = f'SELECT * FROM {DB_DATABASE}.{DB_SCHEMA}.{DB_TABLE} WITH (NOLOCK)'
 df_rsb = pd.read_sql(sql_query, engine)
 
 # Convertir nombres de columnas a minúsculas (lower)
@@ -102,7 +103,6 @@ df_rsb['codigo_unico_fuente_'] = df_rsb['codigo_unico_fuente'].apply(lambda x: f
 df_rsb.drop(columns=['codigo_unico_fuente'], inplace=True)
 
 #####################################################################################################
-#df_rsb = df_rsb[df_rsb['codigo_unico_fuente_'] == '141143']
 df_rsb.rename(columns={'codigo_unico_fuente_': 'codigo_unico_fuente'}, inplace=True)
 
 # Guardar el DataFrame en un archivo
@@ -157,7 +157,7 @@ df_rsb.rename(columns={
     'departamento_de_ocurrencia': 'departamento_ocurrencia',
     'municipio_de_ocurrencia': 'municipio_ocurrencia'
 }, inplace=True)
-
+#39768
 # Realizar un merge con el archivo DIVIPOLA_departamentos_122021.dta
 dane = pd.read_stata(DIRECTORY_PATH + "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
 
@@ -165,6 +165,9 @@ dane = pd.read_stata(DIRECTORY_PATH + "fuentes secundarias/tablas complementaria
 df_rsb = pd.merge(df_rsb, dane, how='left', left_on=['codigo_dane_departamento', 'codigo_dane_municipio'],
                 right_on=['codigo_dane_departamento', 'codigo_dane_municipio'], indicator = True)
 df_rsb['_merge'] = df_rsb['_merge'].map({'left_only': 1, 'right_only': 2, 'both': 3})
+
+# Elimine las filas donde no hay coincidencia en la fusión (_merge==2)
+df_rsb = df_rsb[df_rsb['_merge'] != 2]###33230
 
 # Ordenar el DataFrame
 columns_to_sort = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'codigo_dane_departamento','departamento_ocurrencia']
@@ -443,7 +446,7 @@ DB_SCHEMA = "version5"
 DB_TABLE = "BD_UBPD_RSB_NI"
 
 with engine.connect() as conn, conn.begin():
-    conn.execute(f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{DB_SCHEMA}') BEGIN EXEC('CREATE SCHEMA {DB_SCHEMA}') END")
+    #conn.execute(f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{DB_SCHEMA}') BEGIN EXEC('CREATE SCHEMA {DB_SCHEMA}') END")
     df_rsb_copy.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
 
 #retomamos el original o principal
@@ -508,15 +511,15 @@ DB_SCHEMA = "version5"
 DB_TABLE = "BD_UBPD_RSB"
 
 with engine.connect() as conn, conn.begin():
-    conn.execute(f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{DB_SCHEMA}') BEGIN EXEC('CREATE SCHEMA {DB_SCHEMA}') END")
+    #conn.execute(f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{DB_SCHEMA}') BEGIN EXEC('CREATE SCHEMA {DB_SCHEMA}') END")
     df_rsb.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
 
 nrow_df = len(df_rsb)
-print("Registros despues left dane depto muni:",nrow_df)
-#identificados 13551
+print("Registros identificados:",nrow_df)
+
 nrow_df = len(df_rsb_copy)
-print("Registros despues left dane depto muni:",nrow_df)
-#no identificados 97
+print("Registros no identificados:",nrow_df)
+
 # Registra el tiempo de finalización
 end_time = time.time()
 

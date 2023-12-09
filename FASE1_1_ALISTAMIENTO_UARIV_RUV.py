@@ -44,16 +44,18 @@ with open('config.json') as config_file:
     config = json.load(config_file)
 
 DIRECTORY_PATH = config['DIRECTORY_PATH']
-#DB_SERVER = config['DB_SERVER']
-#DB_USERNAME = config['DB_USERNAME']
-#DB_PASSWORD = config['DB_PASSWORD']
+DB_SERVER = config['DB_SERVER']
+DB_INSTANCE = config['DB_INSTANCE']
+DB_USERNAME = config['DB_USERNAME']
+DB_PASSWORD = config['DB_PASSWORD']
 
-#DB_DATABASE = "PRD_QPREP_UBPD"
-#DB_SCHEMA = "dbo"
-#DB_TABLE = "UARIV_UNI_VIC_LB_"
+DB_DATABASE = "PRD_QPREP_UBPD"
+DB_SCHEMA = "dbo"
+DB_TABLE = "UARIV_UNI_VIC_LB_"
 
 # Realizar un merge con el archivo DIVIPOLA_departamentos_122021.dta
-dane = pd.read_stata(DIRECTORY_PATH + "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
+dane_file_path = os.path.join(DIRECTORY_PATH, "fuentes secundarias", "tablas complementarias", "DIVIPOLA_municipios_122021.dta")
+dane = pd.read_stata(dane_file_path)
 
 # Renombrar columnas
 dane = dane.rename(columns={
@@ -80,9 +82,15 @@ dane = pd.concat([dane, additional_data], ignore_index=True)
 dane_depts = dane[['codigo_dane_departamento',
                   'departamento_ocurrencia']].drop_duplicates()
 
-csv_path = os.path.join(DIRECTORY_PATH, "fuentes secundarias", "UBPD_UARIV_RUV_SIN_DESPLA_FORZA_.csv")
-dtypes = {'VILB_DOCUMENTO': str, 'VILB_DESCRIPCIONDISCAPACIDAD': str}
-df_uariv = pd.read_csv(csv_path, sep='#', encoding='latin-1', dtype=dtypes)
+db_url = f'mssql+pyodbc://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}\\{DB_INSTANCE}/{DB_DATABASE}?driver=ODBC+Driver+17+for+SQL+Server'
+
+# Conectar a la BBDD
+engine = create_engine(db_url)
+# Cargar datos desde la base de datos
+
+sql_query = f'SELECT * FROM {DB_DATABASE}.{DB_SCHEMA}.{DB_TABLE}'
+df_uariv = pd.read_sql(sql_query, engine)
+
 
 # Columnas de interés
 interest_columns = ["VILB_IDPERSONA", "VILB_IDHOGAR", "VILB_TIPODOCUMENTO",
@@ -143,7 +151,6 @@ df_uariv[clean_columns] = df_uariv[clean_columns].replace(na_values)
 # Unir la columna 'id_registro' al DataFrame
 df_uariv = pd.concat([df_uariv, id_registros], axis=1)
 
-
 # homologacion de estructura, formato y contenido
 # Datos sobre los hechos
 # lugar de ocurrencia
@@ -174,11 +181,16 @@ df_uariv['codigo_dane_departamento'] = np.where((pd.to_numeric(df_uariv['VILB_CO
                                                        (pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']).isin(only_departamento)),
                                                        df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].astype(str).str[:2],
                                                        df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].astype(str).str[:2]))
+
+df_uariv['codigo_dane_departamento'] = np.where(pd.to_numeric(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA']) < 9000,
+                                                             '0' + df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].astype(str).str[:1],
+                                                             df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'].astype(str).str[:2])
+    
 df_uariv['codigo_dane_departamento'] = np.where(df_uariv['codigo_dane_departamento'] == '80', '08', df_uariv['codigo_dane_departamento'])
 
 # Realizar un left join con el DataFrame 'dane_depts'
 df_uariv = df_uariv.merge(dane_depts, on='codigo_dane_departamento', how='left', suffixes=('', '_sec'))
-
+#1870582 despues del left con dane departamento
 # Realizar las últimas transformaciones
 df_uariv['pais_ocurrencia'] = np.where(df_uariv['VILB_CODDANEMUNICIPIOOCURRENCIA'] == 0, 'COLOMBIA', df_uariv['VILB_PAIS'])
 
@@ -191,12 +203,13 @@ df_uariv[columns_to_normalize] = df_uariv[columns_to_normalize].replace(na_value
 
 # Filtrar para mantener solo los registros con 'codigo_dane_departamento' y 'codigo_dane_municipio' presentes en 'dane'
 df_uariv = df_uariv[df_uariv['codigo_dane_departamento'].isin(dane['codigo_dane_departamento'])]
+#1768666 excluyendo los departamentos que no estan en dane divipola
+
 df_uariv = df_uariv[df_uariv['codigo_dane_municipio'].isin(dane['codigo_dane_municipio'])]
 
 # llevar a cabo mapeo de fechas
 corrige_fecha_ocurrencia(df_uariv) 
 
-######################################################### 11 min
 df_uariv_copy=df_uariv.copy()
 ###############################
 #df_uariv=df_uariv_copy.copy()
@@ -298,16 +311,19 @@ df_uariv["situacion_actual_des"] = "Sin informacion"
 #           lambda x: pd.Series(
 #               homologacion.nombre_completo.limpiar_nombre_completo(x)))
 
-        
+
 homologacion.nombres.nombres_validos (df_uariv , primer_nombre = 'VILB_PRIMERNOMBRE',
                  segundo_nombre = 'VILB_SEGUNDONOMBRE',
                  primer_apellido = 'VILB_PRIMERAPELLIDO',
                  segundo_apellido = 'VILB_SEGUNDOAPELLIDO',
                  nombre_completo = 'VILB_NOMBRECOMPLETO')
-muestra = df_uariv.sample(n=10000)
-#######################dic 2
+
+
+df_uariv.rename(columns={'VILB_DOCUMENTO': 'documento'}, inplace=True)      
 # Documento de identificación
-homologacion.documento.documento_valida (df_uariv, documento = 'VILB_DOCUMENTO')
+homologacion.documento.documento_valida (df_uariv, documento = 'documento')
+df_uariv['VILB_FECHANACIMIENTO_'] = df_uariv['VILB_FECHANACIMIENTO']
+df_uariv['VILB_FECHANACIMIENTO'] = pd.to_datetime(df_uariv['VILB_FECHANACIMIENTO'], errors='coerce', format="%d/%m/%Y")
 
 #implementaciOn de las reglas de la registraduria
 # Si es CC o TI solo deben ser numéricos
@@ -321,35 +337,38 @@ df_uariv['documento_CC_TI_mayor1KM'] = np.where((df_uariv['documento'].str.len()
 df_uariv['documento_TI_10_11_caract'] = np.where(~((df_uariv['documento'].str.len() == 10) | (df_uariv['documento'].str.len() == 11)) & (df_uariv['VILB_TIPODOCUMENTO'] == 'TI'), 1, 0)
 
 # Si TI es de longitud 11, los 6 primeros dígitos corresponden a la fecha de nacimiento (aammdd)
-df_uariv['documento_TI_11_caract_fecha_nac'] = np.where(~((df_uariv['documento'].str[:6] == pd.to_datetime(df_uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y").dt.strftime('%y%m%d')) & (df_uariv['documento'].str.len() == 11) & (df_uariv['VILB_TIPODOCUMENTO'] == 'TI')), 1, 0)
+df_uariv['documento_TI_11_caract_fecha_nac'] = np.where(~((df_uariv['documento'].str[:6] == df_uariv['VILB_FECHANACIMIENTO'].dt.strftime('%y%m%d')) & (df_uariv['documento'].str.len() == 11) & (df_uariv['VILB_TIPODOCUMENTO'] == 'TI')), 1, 0)
 
 # El número de CC de un hombre con longitud de 4 a 8 debe estar entre 1 y 19.999.999 o 70.000.000 y 99.999.999
-df_uariv['documento_CC_hombre_consistente'] = np.where((pd.to_numeric(df_uariv['documento'], errors='coerce').isin(range(1, 20000000)) | pd.to_numeric(df_uariv['documento'], errors='coerce').isin(range(70000000, 100000000))) & df_uariv['documento'].str.len().isin(range(4, 9)) & (df_uariv['VILB_TIPODOCUMENTO'] == 'CC') & (df_uariv['VILB_GENERO'] == 'HOMBRE'), 1, 0)
+df_uariv['documento_CC_hombre_consistente'] = np.where(~(pd.to_numeric(df_uariv['documento'], errors='coerce').isin(range(1, 20000000)) | pd.to_numeric(df_uariv['documento'], errors='coerce').isin(range(70000000, 100000000))) & df_uariv['documento'].str.len().isin(range(4, 9)) & (df_uariv['VILB_TIPODOCUMENTO'] == 'CC') & (df_uariv['VILB_GENERO'] == 'HOMBRE'), 1, 0)
 
 # El número de CC de una mujer de longitud 8 debe estar entre 20.000.000 y 69.999.999
-df_uariv['documento_CC_mujer_consistente'] = np.where(~pd.to_numeric(df_uariv['documento'], errors='coerce').isin(range(20000000, 70000000)) & (df_uariv['documento'].str.len() == 8) & (df_uariv['VILB_TIPODOCUMENTO'] == 'CC') & (df_uariv['VILB_GENERO'] == 'MUJER'), 1, 0)
+df_uariv['documento_CC_mujer_consistente'] = np.where(~(pd.to_numeric(df_uariv['documento'], errors='coerce').isin(range(20000000, 70000000))) & (df_uariv['documento'].str.len() == 8) & (df_uariv['VILB_TIPODOCUMENTO'] == 'CC') & (df_uariv['VILB_GENERO'] == 'MUJER'), 1, 0)
 
 # La CC de una mujer debe estar entre 8 o 10 caracteres
-df_uariv['documento_CC_mujer_consistente2'] = np.where(~df_uariv['documento'].str.len().isin([8, 10]) & (df_uariv['VILB_TIPODOCUMENTO'] == 'CC') & (df_uariv['VILB_GENERO'] == 'MUJER'), 1, 0)
+df_uariv['documento_CC_mujer_consistente2'] = np.where(~(df_uariv['documento'].str.len().isin(list(range(4, 9)) + [10])) & (df_uariv['VILB_TIPODOCUMENTO'] == 'CC') & (df_uariv['VILB_GENERO'] == 'MUJER'), 1, 0)
 
 # La CC de un hombre debe tener una longitud de 4, 5, 6, 7, 8 o 10 caracteres
 df_uariv['documento_CC_hombre_consistente2'] = np.where(~df_uariv['documento'].str.len().isin([4, 5, 6, 7, 8, 10]) & (df_uariv['VILB_TIPODOCUMENTO'] == 'CC') & (df_uariv['VILB_GENERO'] == 'HOMBRE'), 1, 0)
 
 # Si la TI es de 11 caracteres, el 10mo caracter debe ser 1, 3, 5, 7, 9 si es mujer
-df_uariv['documento_TI_mujer_consistente'] = np.where(~df_uariv['documento'].str[9:10].isin([str(i) for i in range(1, 10, 2)]) & (df_uariv['documento'].str.len() == 11) & (df_uariv['VILB_TIPODOCUMENTO'] == 'TI') & (df_uariv['VILB_GENERO'] == 'MUJER'), 1, 0)
+df_uariv['documento_TI_mujer_consistente'] = np.where(~(df_uariv['documento'].str[10:11].isin([str(i) for i in range(1, 11, 2)])) & (df_uariv['documento'].str.len() == 11) & (df_uariv['VILB_TIPODOCUMENTO'] == 'TI') & (df_uariv['VILB_GENERO'] == 'MUJER'), 1, 0)
 
 # Si la TI es de 11 caracteres, el 10mo caracter debe ser 2, 4, 6, 8, 0 si es hombre
-df_uariv['documento_TI_hombre_consistente'] = np.where(~df_uariv['documento'].str[9:10].isin([str(i) for i in range(0, 10, 2)]) & (df_uariv['documento'].str.len() == 11) & (df_uariv['VILB_TIPODOCUMENTO'] == 'TI') & (df_uariv['VILB_GENERO'] == 'HOMBRE'), 1, 0)
+df_uariv['documento_TI_hombre_consistente'] = np.where(~(df_uariv['documento'].str[10:11].isin([str(i) for i in range(0, 11, 2)])) & (df_uariv['documento'].str.len() == 11) & (df_uariv['VILB_TIPODOCUMENTO'] == 'TI') & (df_uariv['VILB_GENERO'] == 'HOMBRE'), 1, 0)
 
+#df_uariv.drop(columns=['VILB_FECHANACIMIENTO'], inplace=True)
+#df_uariv.rename(columns={'VILB_FECHANACIMIENTO_': 'VILB_FECHANACIMIENTO'}, inplace=True) 
 
 # Resumen de documentos
-resumen_documento = df_uariv.loc[:, df_uariv.columns.str.startswith('documento_')].copy()
-resumen_documento = resumen_documento[df_uariv.filter(like='documento_').sum(axis=1) > 0]
-resumen_documento = resumen_documento[['documento_', 'VILB_TIPODOCUMENTO', 'VILB_DOCUMENTO', 'documento', 'VILB_GENERO', 'VILB_FECHANACIMIENTO']]
+#resumen_documento = df_uariv.loc[:, df_uariv.columns.str.startswith('documento_')].copy()
+#resumen_documento = resumen_documento[df_uariv.filter(like='documento_').sum(axis=1) > 0]
+#resumen_documento = resumen_documento[['documento_', 'VILB_TIPODOCUMENTO', 'VILB_DOCUMENTO', 'documento', 'VILB_GENERO', 'VILB_FECHANACIMIENTO']]
+
 
 # Guardar el DataFrame en un archivo
-csv_file_path = os.path.join(DIRECTORY_PATH, "log", "revision_documentos.csv")
-resumen_documento.to_csv(csv_file_path, sep=';', index=False)
+#log_file_path = os.path.join(DIRECTORY_PATH, "log", "revision_documentos.csv")
+#resumen_documento.to_csv(log_file_path, sep=';', index=False)
 
 # Sexo
 df_uariv['sexo'] = df_uariv['VILB_GENERO'].apply(lambda x: 'OTRO' if x in ['LGBTI', 'INTERSEXUAL'] else x)
@@ -357,59 +376,70 @@ df_uariv['sexo'] = df_uariv['sexo'].replace('NO INFORMA', pd.NA)
 
 # Pertenencia étnica
 conditions = [
-    (uariv['VILB_PERTENENCIAETNICA'] == 'NINGUNA'), 
-    (uariv['VILB_PERTENENCIAETNICA'].isin(['NEGROA O AFROCOLOMBIANOA', 'RAIZAL DEL ARCHIPIELAGO DE SAN ANDRES Y PROVIDENCI', 'PALENQUERO', 'AFROCOLOMBIANO ACREDITADO RA'])), 
-    (uariv['VILB_PERTENENCIAETNICA'].isin(['INDIGENA', 'INDIGENA ACREDITADO RA'])), 
-    (uariv['VILB_PERTENENCIAETNICA'].isin(['GITANOA ROM', 'GITANO RROM ACREDITADO RA']))
+    (df_uariv['VILB_PERTENENCIAETNICA'] == 'NINGUNA'), 
+    (df_uariv['VILB_PERTENENCIAETNICA'].isin(['NEGROA O AFROCOLOMBIANOA', 'RAIZAL DEL ARCHIPIELAGO DE SAN ANDRES Y PROVIDENCI', 'PALENQUERO', 'AFROCOLOMBIANO ACREDITADO RA'])), 
+    (df_uariv['VILB_PERTENENCIAETNICA'].isin(['INDIGENA', 'INDIGENA ACREDITADO RA'])), 
+    (df_uariv['VILB_PERTENENCIAETNICA'].isin(['GITANOA ROM', 'GITANO RROM ACREDITADO RA']))
 ]
 choices = ['MESTIZO', 'NARP', 'INDIGENA', 'RROM']
-uariv['iden_pertenenciaetnica'] = np.select(conditions, choices, default=pd.NA)
+df_uariv['iden_pertenenciaetnica'] = np.select(conditions, choices, default=pd.NA)
 
-uariv['anio_nacimiento'] = pd.to_datetime(uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y").dt.strftime("%Y")
-uariv['mes_nacimiento'] = pd.to_datetime(uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y").dt.strftime("%m")
-uariv['dia_nacimiento'] = pd.to_datetime(uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y").dt.strftime("%d")
-uariv['fecha_nacimiento_dtf'] = pd.to_datetime(uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y")
-uariv['fecha_nacimiento'] = pd.to_datetime(uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y").dt.strftime("%Y%m%d")
+df_uariv['anio_nacimiento'] = pd.to_datetime(df_uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y").dt.strftime("%Y")
+df_uariv['mes_nacimiento'] = pd.to_datetime(df_uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y").dt.strftime("%m")
+df_uariv['dia_nacimiento'] = pd.to_datetime(df_uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y").dt.strftime("%d")
+df_uariv['fecha_nacimiento_dtf'] = pd.to_datetime(df_uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y")
+df_uariv['fecha_nacimiento'] = pd.to_datetime(df_uariv['VILB_FECHANACIMIENTO'], format="%d/%m/%Y").dt.strftime("%Y%m%d")
 
 
 # Ajuste del año de nacimiento
-uariv['anio_nacimiento'] = np.where(uariv['anio_nacimiento'].astype(float) < 1905, np.nan, uariv['anio_nacimiento'])
-uariv['anio_nacimiento'] = np.where(uariv['anio_nacimiento'].astype(float) > 2022, np.nan, uariv['anio_nacimiento'])
+df_uariv['anio_nacimiento'] = np.where(df_uariv['anio_nacimiento'].astype(float) < 1905, np.nan, df_uariv['anio_nacimiento'])
+df_uariv['anio_nacimiento'] = np.where(df_uariv['anio_nacimiento'].astype(float) > 2022, np.nan, df_uariv['anio_nacimiento'])
 
 meses = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
 dias = ["01", "02", "03", "04", "05", "06", "07", "08", "09"] + [str(i) for i in range(10, 32)]
 
 # Verificación de meses y días
-uariv = uariv[uariv['mes_nacimiento'].isin(meses)]
-uariv = uariv[uariv['dia_nacimiento'].isin(dias)]
+df_uariv = df_uariv[df_uariv['mes_nacimiento'].isin(meses)]
+df_uariv = df_uariv[df_uariv['dia_nacimiento'].isin(dias)]
+#1768638 registros despues de quitar para los cuales los meses o los dias son invalidos
 
+hora = datetime.now()
+print(hora) 
 # Calculando la edad
-uariv['edad'] = np.where((uariv['fecha_ocur_anio'].isna() | uariv['anio_nacimiento'].isna()) |
-                        (uariv['fecha_ocur_anio'].astype(float) <= uariv['anio_nacimiento'].astype(float)),
+df_uariv['edad'] = np.where((df_uariv['fecha_ocur_anio'].isna() | df_uariv['anio_nacimiento'].isna()) |
+                        (df_uariv['fecha_ocur_anio'].astype(float) <= df_uariv['anio_nacimiento'].astype(float)),
                         np.nan,
-                        uariv['fecha_ocur_anio'].astype(float) - uariv['anio_nacimiento'].astype(float))
+                        df_uariv['fecha_ocur_anio'].astype(float) - df_uariv['anio_nacimiento'].astype(float))
 
 # Ajuste de edad
-uariv['edad'] = np.where(uariv['edad'] > 100, np.nan, uariv['edad'])
+df_uariv['edad'] = np.where(df_uariv['edad'] > 100, np.nan, df_uariv['edad'])
 
 # Eliminar duplicados
-n_1 = len(uariv)
-uariv = uariv.drop_duplicates()
+n_1 = len(df_uariv)
+df_uariv = df_uariv.drop_duplicates()
 
-n_duplicados = n_1 - len(uariv)
+n_duplicados = n_1 - len(df_uariv)
 
 # Excluir víctimas indirectas
-n_2 = len(uariv)
-uariv = uariv[uariv['VILB_TIPOVICTIMA'] != "INDIRECTA"]
+n_2 = len(df_uariv)
+df_uariv = df_uariv[df_uariv['VILB_TIPOVICTIMA'] != "INDIRECTA"]
+# 912885 registros posterior a excluir los tipo victima indirecta
 
-n_indirectas = n_2 - len(uariv)
+n_indirectas = n_2 - len(df_uariv)
 
 # Excluir personas jurídicas
-n_3 = len(uariv)
-uariv = uariv[~uariv['VILB_TIPODOCUMENTO'].isin(["NIT"])]
+n_3 = len(df_uariv)
+df_uariv = df_uariv[~df_uariv['VILB_TIPODOCUMENTO'].isin(["NIT"])]
+#912879 registros posterior a excluir personas juridicas
+n_juridicas = n_3 - len(df_uariv)
 
-n_juridicas = n_3 - len(uariv)
-
+df_uariv.rename(columns={
+    'VILB_NOMBRECOMPLETO': 'nombre_completo',
+    'VILB_PRIMERNOMBRE': 'primer_nombre',
+    'VILB_SEGUNDONOMBRE': 'segundo_nombre',
+    'VILB_PRIMERAPELLIDO': 'primer_apellido',
+    'VILB_SEGUNDOAPELLIDO': 'segundo_apellido'
+}, inplace=True)
 
 # Campos requeridos
 campos_requeridos = ['id_registro', 'tabla_origen', 'codigo_unico_fuente',
@@ -424,39 +454,57 @@ campos_requeridos = ['id_registro', 'tabla_origen', 'codigo_unico_fuente',
                      'pres_resp_guerr_eln', 'pres_resp_guerr_otra', 'pres_resp_otro', 'situacion_actual_des']
 
 # Verificar campos requeridos y seleccionar columnas
-uariv = uariv[campos_requeridos].copy()
+df_uariv = df_uariv[campos_requeridos].copy()
 
 # Filtrar y eliminar filas con id_registro nulo
-uariv = uariv.dropna(subset=['id_registro'])
+df_uariv = df_uariv.dropna(subset=['id_registro'])
 
 # Eliminar duplicados manteniendo la primera ocurrencia
-uariv = uariv.drop_duplicates(subset=campos_requeridos[1:], keep='first')
+df_uariv = df_uariv.drop_duplicates(subset=campos_requeridos[1:], keep='first')
+#912121 registros posterior a quitar dulicados
 
 # Filtrar filas duplicadas en el campo codigo_unico_fuente
-temp = uariv[uariv['codigo_unico_fuente'].isin(uariv[uariv.duplicated('codigo_unico_fuente')]['codigo_unico_fuente'])]
+temp = df_uariv[df_uariv['codigo_unico_fuente'].isin(df_uariv[df_uariv.duplicated('codigo_unico_fuente')]['codigo_unico_fuente'])]
 
 # Filtrar y verificar unicidad del campo codigo_unico_fuente
-uariv = uariv.dropna(subset=['codigo_unico_fuente'])
-uariv = uariv[~uariv.duplicated('codigo_unico_fuente')]
+df_uariv = df_uariv.dropna(subset=['codigo_unico_fuente'])
+df_uariv = df_uariv[~df_uariv.duplicated('codigo_unico_fuente')]
 
 # Verificar que el número de filas sea igual a la cantidad única de codigo_unico_fuente
-assert len(uariv) == len(uariv['codigo_unico_fuente'].unique())
-
-
-# Mensaje de información
-logging.info("Se realiza la identificación y eliminación de los registros no identificados")
+assert len(df_uariv) == len(df_uariv['codigo_unico_fuente'].unique())
 
 # Identificación de registros
-uariv_ident = uariv[
-    (~uariv['primer_nombre'].isna() | ~uariv['segundo_nombre'].isna()) &
-    (~uariv['primer_apellido'].isna() | ~uariv['segundo_apellido'].isna()) &
-    (~uariv['documento'].isna() | ~uariv['fecha_ocur_anio'].isna() | ~uariv['fecha_ocur_anio'].isna() | ~uariv['departamento_ocurrencia'].isna())
+df_uariv_ident = df_uariv[
+    (~df_uariv['primer_nombre'].isna() | ~df_uariv['segundo_nombre'].isna()) &
+    (~df_uariv['primer_apellido'].isna() | ~df_uariv['segundo_apellido'].isna()) &
+    (~df_uariv['documento'].isna() | ~df_uariv['fecha_ocur_anio'].isna() | ~df_uariv['departamento_ocurrencia'].isna())
 ]
 
 # Registros no identificados
-uariv_no_ident = uariv[~uariv['id_registro'].isin(uariv_ident['id_registro'])]
+df_uariv_no_ident = df_uariv[~df_uariv['id_registro'].isin(df_uariv_ident['id_registro'])]
 
 # Número de filas en cada conjunto
-print("Número de filas en uariv:", len(uariv))
-print("Número de filas en uariv_ident:", len(uariv_ident))
-print("Número de filas en uariv_no_ident:", len(uariv_no_ident))
+print("Número de filas en uariv:", len(df_uariv))
+print("Número de filas en df_uariv_ident:", len(df_uariv_ident))
+print("Número de filas en df_uariv_no_ident:", len(df_uariv_no_ident))
+
+DB_SCHEMA = "version5"
+DB_TABLE = "UARIV_VIVANTO"
+
+#exportar a la BBDD los registros identificados
+with engine.connect() as conn, conn.begin():
+    df_uariv_ident.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
+    
+DB_TABLE = "UARIV_VIVANTO_PNI"
+#exportar a la BBDD los registros no identificados
+with engine.connect() as conn, conn.begin():
+    df_uariv_no_ident.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
+    
+    
+# Registra el tiempo de finalización
+end_time = time.time()
+
+# Calcula el tiempo transcurrido
+elapsed_time = end_time - start_time
+
+print(f"Tiempo transcurrido: {elapsed_time/60} segundos")

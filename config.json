@@ -1,6 +1,7 @@
 {
 "DIRECTORY_PATH": "C:/A_UBPD/Fuentes/OrquestadorNatalia/",
-"DB_SERVER": "localhost",
+"DB_SERVER": "DESKTOP-HVH849S",
+"DB_INSTANCE": "SQLEXP2022",
 "DB_USERNAME": "sa",
-"DB_PASSWORD": "ClaveSqlserver1"
+"DB_PASSWORD": "Clave2022"
 }

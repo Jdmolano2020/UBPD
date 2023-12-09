@@ -18,6 +18,7 @@ with open('config.json') as config_file:
 
 DIRECTORY_PATH = config['DIRECTORY_PATH']
 DB_SERVER = config['DB_SERVER']
+DB_INSTANCE = config['DB_INSTANCE']
 DB_USERNAME = config['DB_USERNAME']
 DB_PASSWORD = config['DB_PASSWORD']
 
@@ -25,7 +26,7 @@ DB_DATABASE = "PRD_QPREP_UBPD"
 DB_SCHEMA = "dbo"
 DB_TABLE = "UARIV_UNI_VIC_LB"
 
-db_url = f'mssql+pyodbc://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}/{DB_DATABASE}?driver=ODBC+Driver+17+for+SQL+Server'
+db_url = f'mssql+pyodbc://{DB_USERNAME}:{DB_PASSWORD}@{DB_SERVER}\\{DB_INSTANCE}/{DB_DATABASE}?driver=ODBC+Driver+17+for+SQL+Server'
 
 # Conectar a la BBDD
 engine = create_engine(db_url)
@@ -48,11 +49,14 @@ while True:
     DB_TABLE = "UARIV_UNI_VIC_LB_"
     result_count = session.execute(f'SELECT count(*) FROM {DB_DATABASE}.{DB_SCHEMA}.{DB_TABLE}').scalar()
 
+    print("procesando")
     if result_count > 0:
         break
+        print("terminó")
+
 
     # Esperar y luego volver a verificar
-    time.sleep(tiempo_espera)
+time.sleep(tiempo_espera)
 
 
 # Cargar los resultados en un DataFrame de pandas

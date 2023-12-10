@@ -67,7 +67,8 @@ fecha_inicio = datetime.now()
 # Establecimiento de la conexion a la base de datos
 # Listar los drivers ODBC instalados
 # Lectura del archivo DIVIPOLA
-dane = pd.read_stata("fuentes secundarias\\tablas complementarias\\DIVIPOLA_municipios_122021.dta")
+dane = pd.read_stata(
+    "fuentes secundarias\\tablas complementarias\\DIVIPOLA_municipios_122021.dta")
 # Renombrar columnas
 dane = dane.rename(columns={
     'codigo_dane_departamento': 'codigo_dane_departamento',
@@ -112,15 +113,19 @@ n_personas = pd.read_sql("select count(*) from [dbo].[V_CNMH_RU]",
                          con=engine).iloc[0, 0]
 # Obtener el número de casos sin personas
 n_casos_sin_personas = pd.read_sql(
-    "select count(*) from [dbo].[V_CNMH_RU_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])",
+    """select count(*) from [dbo].[V_CNMH_RU_C]
+    where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])
+    """,
     con=engine).iloc[0, 0]
 # Obtener los casos sin personas
 casos_sin_personas = pd.read_sql(
-    "select * from [dbo].[V_CNMH_RU_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])",
+    """select * from [dbo].[V_CNMH_RU_C]
+    where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])""",
     con=engine)
 # Obtener el número de personas sin casos
 n_personas_sin_casos = pd.read_sql(
-    "select count(*) from [dbo].[V_CNMH_RU] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU_C])",
+    """select count(*) from [dbo].[V_CNMH_RU]
+    where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU_C])""",
     con=engine).iloc[0, 0]
 # Limpieza de nombres de columnas (clean_names no es necesario en pandas)
 cnmh.columns = cnmh.columns.str.lower()
@@ -215,7 +220,8 @@ variables_limpieza_dane = ["departamento_ocurrencia", "municipio_ocurrencia"]
 
 # Limpieza y normalización de las columnas de dane
 dane[variables_limpieza_dane] = dane[variables_limpieza_dane].apply(clean_text)
-dane[variables_limpieza_dane] = dane[variables_limpieza_dane].replace(na_values)
+dane[variables_limpieza_dane] = dane[
+    variables_limpieza_dane].replace(na_values)
 dane["codigo_dane_departamento"] = dane["codigo_dane_departamento"].str.strip()
 
 # Crear un DataFrame con las equivalencias para el departamento
@@ -308,7 +314,8 @@ sin_informacion_actores = {
     "NO IDENTIFICADO": np.nan
 }
 # Reemplazar valores en la columna 'espeficicacion_presunto_responsable'
-cnmh['espeficicacion_presunto_responsable'] = cnmh['espeficicacion_presunto_responsable'].replace(sin_informacion_actores)
+cnmh['espeficicacion_presunto_responsable'] = cnmh[
+    'espeficicacion_presunto_responsable'].replace(sin_informacion_actores)
 
 # Crear nuevas columnas para categorizar responsables
 cnmh['pres_resp_agentes_estatales'] = np.where(
@@ -614,7 +621,8 @@ campos_requeridos = ['id_registro', 'tabla_origen', 'codigo_unico_fuente',
                      'pres_resp_guerr_eln', 'pres_resp_guerr_otra',
                      'pres_resp_otro', 'situacion_actual_des']
 
-campos_faltantes = [campo for campo in campos_requeridos if campo not in cnmh.columns]
+campos_faltantes = [campo for campo in campos_requeridos
+                    if campo not in cnmh.columns]
 print(campos_faltantes)
 
 cnmh = cnmh[campos_requeridos].copy()

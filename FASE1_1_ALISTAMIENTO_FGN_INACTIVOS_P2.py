@@ -40,7 +40,7 @@ db_database = "ubpd_base"
 parametro_ruta = ""
 parametro_cantidad = ""
 # Establecer la ruta de trabajo
-ruta =  directory_path
+ruta = directory_path
 
 # Verificar si `1` es una cadena vacía y ajustar el directorio de trabajo
 # en consecuencia
@@ -334,8 +334,6 @@ df['N'] = df.groupby(
 df_rni = df[df['rni'] == 1].copy()
 nrow_df_no_ident = len(df_rni)
 # Guardar resultados en la base de datos de destino
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
-engine = create_engine(db_url)
 # Escribir los DataFrames en las tablas correspondientes en la base de datos
 # #df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
 chunk_size = 1000  # ajusta el tamaño según tu necesidad

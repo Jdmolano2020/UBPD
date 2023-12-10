@@ -15,3 +15,6 @@ scripts = ["FASE1_1_ALISTAMIENTO_ICMP_P2.py",
 with multiprocessing.Pool() as pool:
     # Ejecutar los scripts en paralelo
     pool.map(ejecutar_script, scripts)
+
+import multiprocessing as mp
+print("Number of processors: ", mp.cpu_count())

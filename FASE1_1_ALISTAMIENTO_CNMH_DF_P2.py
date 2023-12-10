@@ -180,7 +180,8 @@ cnmh[variables_limpieza] = cnmh[variables_limpieza].replace(na_values)
 variables_limpieza_dane = ["departamento_ocurrencia", "municipio_ocurrencia"]
 # Aplicar transformaciones a las columnas de tipo 'str'
 dane[variables_limpieza_dane] = dane[variables_limpieza_dane].apply(clean_text)
-dane[variables_limpieza_dane] = dane[variables_limpieza_dane].replace(na_values)
+dane[variables_limpieza_dane] = dane[
+    variables_limpieza_dane].replace(na_values)
 # Obtener valores únicos de 'codigo_dane_departamento'
 
 # 200
@@ -260,7 +261,8 @@ sin_informacion_actores = ['NO DEFINIDO', '', 'NO IDENTIFICA',
                            'SIN INFORMACIÓN VIOLENCIA GENERALIZADA', '',
                            "NO IDENTIFICADO"]
 
-cnmh['espeficicacion_presunto_responsable'] = cnmh['espeficicacion_presunto_responsable'].apply(
+cnmh['espeficicacion_presunto_responsable'] = cnmh[
+    'espeficicacion_presunto_responsable'].apply(
     lambda x: None if x in sin_informacion_actores else x)
 
 responsables_cols = ["perpetrador_identificado", "presunto_reponsable",
@@ -492,9 +494,12 @@ resumen_documento = cnmh[cnmh.filter(like="documento_").sum(axis=1) > 0]
   "fecha_nacimiento"]]
 
 # Seleccionar columnas que comienzan con "documento_", y algunas otras columnas
-columnas_seleccionadas = resumen_documento.filter(like="documento_").columns.tolist(
-) + ["tipo_documento",
-     "numero_documento", "documento", "sexo", "fecha_nacimiento"]
+columnas_seleccionadas = resumen_documento.filter(
+    like="documento_").columns.tolist() + ["tipo_documento",
+                                           "numero_documento",
+                                           "documento",
+                                           "sexo",
+                                           "fecha_nacimiento"]
 resumen_documento_seleccionado = resumen_documento[columnas_seleccionadas]
 # Guardar el DataFrame resultante en un archivo CSV
 resumen_documento_seleccionado.to_csv(

@@ -592,5 +592,5 @@ log = {
     'n_duplicados': n_duplicados,
 }
 
-with open('log/resultado_df_cev_jep.yaml', 'w') as file:
+with open('log/resultado_df_rnd.yaml', 'w') as file:
     yaml.dump(log, file)

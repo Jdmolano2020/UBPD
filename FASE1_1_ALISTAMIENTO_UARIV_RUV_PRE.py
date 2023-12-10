@@ -1,5 +1,6 @@
 import json
 import time
+import yaml
 import pyodbc
 import pandas as pd
 from datetime import datetime
@@ -36,7 +37,7 @@ session = Session()
 
 # Nombre del procedimiento almacenado
 stored_procedure_name = 'CONSULTA_UARIV_EXCLUYENDO_DESPLA_FORZA'
-#############
+
 query = f"EXEC {stored_procedure_name}"
 result = session.execute(query)
 session.commit()
@@ -65,8 +66,9 @@ time.sleep(tiempo_espera)
 #len(df_uariv_pre)
 # Cerrar la sesión
 session.close()
-##############
+
 end_time = time.time()
+
 
 # Calcula el tiempo transcurrido
 elapsed_time = end_time - start_time

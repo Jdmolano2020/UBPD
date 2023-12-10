@@ -68,7 +68,8 @@ df_rsb = pd.read_sql(sql_query, engine)
 
 # Convertir nombres de columnas a minúsculas (lower)
 df_rsb.columns = [col.lower() for col in df_rsb.columns]
-
+nrow_df_ini = len(df_rsb)
+print("Registros despues cargue fuente: ", nrow_df_ini)
 # Etiquetar y eliminar observaciones duplicadas
 df_rsb['duplicates_reg'] = df_rsb.duplicated()
 df_rsb = df_rsb[~df_rsb['duplicates_reg']]
@@ -439,26 +440,32 @@ df_rsb['anio_nacimiento'] = np.where(
 # de desaparición reportadas
 df_rsb['dif_edad'] = np.abs(df_rsb['edad_desaparicion_est'] - df_rsb['edad'])
 p90 = df_rsb['dif_edad'].quantile(0.90)
-df_rsb['inconsistencia_fechas'] = np.where(((df_rsb['edad_desaparicion_est'] < 0) | 
-       (df_rsb['edad_desaparicion_est'] > 100)) & 
-       (df_rsb['edad_desaparicion_est'].notna()), True, False)
-df_rsb['inconsistencia_fechas'] = np.where((df_rsb['dif_edad'] > p90) & 
-       (df_rsb['dif_edad'].notna()), 2, 
-       df_rsb['inconsistencia_fechas'])
-df_rsb['inconsistencia_fechas'] = np.where((df_rsb['fecha_nacimiento_dft'] == 
-       df_rsb['fecha_desaparicion_dtf']) & 
-      (df_rsb['fecha_nacimiento_dft'].notna()) & 
-      (df_rsb['fecha_desaparicion_dtf'].notna()), 3, 
-      df_rsb['inconsistencia_fechas'])
+df_rsb['inconsistencia_fechas'] = np.where(
+    ((df_rsb['edad_desaparicion_est'] < 0) |
+     (df_rsb['edad_desaparicion_est'] > 100)) &
+    (df_rsb['edad_desaparicion_est'].notna()), True, False)
+
+df_rsb['inconsistencia_fechas'] = np.where((df_rsb['dif_edad'] > p90) &
+                                           (df_rsb['dif_edad'].notna()), 2,
+                                           df_rsb['inconsistencia_fechas'])
+
+df_rsb['inconsistencia_fechas'] = np.where(
+    (df_rsb['fecha_nacimiento_dft'] == df_rsb['fecha_desaparicion_dtf']) &
+    (df_rsb['fecha_nacimiento_dft'].notna()) &
+    (df_rsb['fecha_desaparicion_dtf'].notna()),
+    3, df_rsb['inconsistencia_fechas'])
 
 # Iterar sobre las columnas que contienen 'nacimiento' o 'edad'
 for col in df_rsb.columns:
     if 'nacimiento' in col or 'edad' in col:
-        # Reemplazar con valor nulo para las filas con inconsistencia_fechas diferente de 0
+        # Reemplazar con valor nulo para las filas con
+        # inconsistencia_fechas diferente de 0
         df_rsb.loc[df_rsb['inconsistencia_fechas'] != 0, col] = np.nan
 
 # Reemplazar la columna 'edad' con 'edad_desaparicion_est' donde sea necesario
-df_rsb.loc[df_rsb['edad_desaparicion_est'].notnull() & (df_rsb['edad'].isnull() | df_rsb['edad'] == 0), 'edad'] = df_rsb['edad_desaparicion_est']
+df_rsb.loc[df_rsb['edad_desaparicion_est'].notnull() &
+           (df_rsb['edad'].isnull() | df_rsb['edad'] == 0),
+           'edad'] = df_rsb['edad_desaparicion_est']
 
 df_rsb.drop(['edad_desaparicion_est'], axis=1, inplace=True)
 
@@ -470,35 +477,47 @@ df_rsb.loc[df_rsb['situacion_actual_des'] == '.', 'situacion_actual_des'] = ''
 # Ejecuta el script
 subprocess.run(['python', 'FASE1_ALISTAMIENTO_UBPD_DTPECV.py'])
 
-dignas_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_UBPD_DTPECV_identificados.csv")
+dignas_path = os.path.join(
+    DIRECTORY_PATH, "archivos depurados", "BD_UBPD_DTPECV_identificados.csv")
 df_csv = pd.read_csv(dignas_path)
 df_csv['documento'] = df_csv['documento'].astype(str)
 
 # Realizar un merge con el archivo de identificados de entregas dignas
 df_rsb = pd.merge(df_rsb, df_csv, how='left', left_on=['documento'],
-                right_on=['documento'], indicator = 'm_dtpecv', suffixes=('', '_derecha'))
+                  right_on=['documento'], indicator='m_dtpecv',
+                  suffixes=('', '_derecha'))
 
-df_rsb['m_dtpecv'] = df_rsb['m_dtpecv'].map({'left_only': 1, 'right_only': 2, 'both': 3})
+df_rsb['m_dtpecv'] = df_rsb['m_dtpecv'].map({'left_only': 1,
+                                             'right_only': 2, 'both': 3})
 
 # Reemplazar valores en la columna 'situacion_actual_des'
-# cuando 'situacion_actual_des' está vacía y 'm_dtpecv' indica que en ambas tablas hubo coincidencia
-df_rsb.loc[(df_rsb['situacion_actual_des'] == '') & (df_rsb['m_dtpecv'] == 3), 'situacion_actual_des'] = 'Apareció Muerto'
+# cuando 'situacion_actual_des' está vacía y 'm_dtpecv'
+# indica que en ambas tablas hubo coincidencia
+df_rsb.loc[(df_rsb['situacion_actual_des'] == '') &
+           (df_rsb['m_dtpecv'] == 3),
+           'situacion_actual_des'] = 'Apareció Muerto'
 
 # Eliminación de la columna de indicador
 df_rsb.drop('m_dtpecv', axis=1, inplace=True)
 df_rsb = df_rsb[df_rsb.columns]
 
-#asignamos valores al dataframe para casos puntuales ya identificados como aparecidos muertos
+# asignamos valores al dataframe para casos puntuales
+# ya identificados como aparecidos muertos
 asigna_aparecio_muerto(df_rsb)
 
-# Ordenar el DataFrame por codigo_unico_fuente y situacion_actual_des en orden descendente
-df_rsb.sort_values(by=['codigo_unico_fuente', 'situacion_actual_des'], ascending=[True, False], inplace=True)
+# Ordenar el DataFrame por codigo_unico_fuente y situacion_actual_des
+# en orden descendente
+df_rsb.sort_values(by=['codigo_unico_fuente', 'situacion_actual_des'],
+                   ascending=[True, False], inplace=True)
 
-# Reemplazar situacion_actual_des con el valor de la primera observación dentro de cada bloque
-df_rsb['situacion_actual_des'] = df_rsb.groupby('codigo_unico_fuente')['situacion_actual_des'].transform('first')
-
+# Reemplazar situacion_actual_des con el valor de la primera
+# observación dentro de cada bloque
+df_rsb['situacion_actual_des'] = df_rsb.groupby(
+    'codigo_unico_fuente')['situacion_actual_des'].transform('first')
+nrow_df_fin = len(df_rsb)
 # Eliminación de Registros No Identificados
-non_miss = df_rsb[['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido']].count(axis=1)
+non_miss = df_rsb[['primer_nombre', 'segundo_nombre',
+                   'primer_apellido', 'segundo_apellido']].count(axis=1)
 df_rsb['rni'] = (non_miss < 2).astype(int)
 
 # Convertir NaN o NaT a valor vacío en las columnas relevantes
@@ -508,79 +527,113 @@ df_rsb[columns_to_fill] = df_rsb[columns_to_fill].fillna("")
 # convertir a caracter
 df_rsb['fecha_ocur_anio'] = df_rsb['fecha_ocur_anio'].astype(str)
 
-df_rsb.loc[(df_rsb['primer_nombre'] == "") | (df_rsb['primer_apellido'] == ""), 'rni'] = 1
-df_rsb.loc[(df_rsb['codigo_dane_departamento'] == "") & (df_rsb['fecha_ocur_anio'] == "") & (df_rsb['documento'] == "") & (df_rsb['fecha_nacimiento'] == ""), 'rni'] = 1
+df_rsb.loc[(df_rsb['primer_nombre'] == "") |
+           (df_rsb['primer_apellido'] == ""), 'rni'] = 1
+df_rsb.loc[(df_rsb['codigo_dane_departamento'] == "") &
+           (df_rsb['fecha_ocur_anio'] == "") &
+           (df_rsb['documento'] == "") &
+           (df_rsb['fecha_nacimiento'] == ""), 'rni'] = 1
 
-# Calcular la suma acumulativa de rni dentro de cada grupo definido por codigo_unico_fuente
+# Calcular la suma acumulativa de rni dentro de cada grupo
+# definido por codigo_unico_fuente
 df_rsb['rni_'] = df_rsb.groupby('codigo_unico_fuente')['rni'].cumsum()
 
 # Calcular el número de observaciones dentro de cada grupo
 df_rsb['N'] = df_rsb.groupby('codigo_unico_fuente').cumcount() + 1
 
-#obtenemos una copia del dataframe principal para trasformarlo y exportar su contenido como no identificados
+# obtenemos una copia del dataframe principal para trasformarlo
+# y exportar su contenido como no identificados
 df_rsb_copy = df_rsb.copy()
 
-#Mantener solo las filas donde rni es igual a 1
+# Mantener solo las filas donde rni es igual a 1
 df_rsb_copy = df_rsb_copy[df_rsb_copy['rni'] == 1]
 
-# Mantener solo la primera observación dentro de cada bloque definido por codigo_unico_fuente
+# Mantener solo la primera observación dentro de cada bloque definido
+# por codigo_unico_fuente
 df_rsb_copy = df_rsb_copy.groupby('codigo_unico_fuente').head(1)
-
-#Definición de ruta y exportacion de dataframe actual
+nrow_df_no_ident = len(df_rsb_copy)
+# Definición de ruta y exportacion de dataframe actual
 # Guardar el DataFrame en un archivo
-csv_file_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_UBPD_RSB_PNI.csv")
+csv_file_path = os.path.join(
+    DIRECTORY_PATH, "archivos depurados", "BD_UBPD_RSB_PNI.csv")
 df_rsb_copy.to_csv(csv_file_path, index=False)
 
 DB_SCHEMA = "version5"
 DB_TABLE = "BD_UBPD_RSB_NI"
-
+chunk_size = 1000
 with engine.connect() as conn, conn.begin():
-    #conn.execute(f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{DB_SCHEMA}') BEGIN EXEC('CREATE SCHEMA {DB_SCHEMA}') END")
-    df_rsb_copy.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
+    df_rsb_copy.to_sql(name=DB_TABLE, con=engine,
+                       schema=DB_SCHEMA, if_exists='replace', index=False,
+                       chunksize=chunk_size)
 
-#retomamos el original o principal
-#conservamos los que son diferentes segun la comparacion, ó lo que es igual excluimos los que son igual
-#se comparan la suma acumulada del grupo y el conteo del total delgrupo, si son iguales quedan por fuera
+# retomamos el original o principal
+# conservamos los que son diferentes segun la comparacion,
+# ó lo que es igual excluimos los que son igual
+# se comparan la suma acumulada del grupo y el conteo del total
+# del grupo, si son iguales quedan por fuera
 
-# se tienen en cuenta los que son registros identificables por que tienen suficiente informacion
+# se tienen en cuenta los que son registros identificables
+# por que tienen suficiente informacion
 df_rsb = df_rsb[df_rsb['rni_'] != df_rsb['N']]
-
+nrow_df = len(df_rsb)
+nrow_df_ident = nrow_df
+n_duplicados = nrow_df_ini - nrow_df_ident
+print("Registros despues eliminar RNI:", nrow_df)
 # Obtener todas las columnas que comienzan con "TH"
 th_columns = [col for col in df_rsb.columns if col.startswith('TH')]
-pres_resp_columns = [col for col in df_rsb.columns if col.startswith('pres_resp_')]
+pres_resp_columns = [col for col in df_rsb.columns
+                     if col.startswith('pres_resp_')]
 # 1. Seleccionar un conjunto específico de columnas
-selected_columns = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre', 'segundo_nombre',
-                    'primer_apellido', 'segundo_apellido', 'documento', 'sexo', 'iden_pertenenciaetnica',
-                    'fecha_nacimiento', 'anio_nacimiento', 'mes_nacimiento', 'dia_nacimiento', 'edad',
-                    'fecha_desaparicion', 'fecha_ocur_anio', 'fecha_ocur_mes', 'fecha_ocur_dia', 'pais_ocurrencia',
-                    'codigo_dane_departamento', 'departamento_ocurrencia', 'codigo_dane_municipio',
-                    'municipio_ocurrencia'] + th_columns + pres_resp_columns + ['situacion_actual_des', 'descripcion_relato',
-                    'in_ubpd']
+selected_columns = [
+    'tabla_origen', 'codigo_unico_fuente', 'nombre_completo',
+    'primer_nombre', 'segundo_nombre',
+    'primer_apellido', 'segundo_apellido', 'documento', 'sexo',
+    'iden_pertenenciaetnica',
+    'fecha_nacimiento', 'anio_nacimiento', 'mes_nacimiento',
+    'dia_nacimiento', 'edad',
+    'fecha_desaparicion', 'fecha_ocur_anio', 'fecha_ocur_mes',
+    'fecha_ocur_dia', 'pais_ocurrencia',
+    'codigo_dane_departamento', 'departamento_ocurrencia',
+    'codigo_dane_municipio',
+    'municipio_ocurrencia'] + th_columns + pres_resp_columns + [
+        'situacion_actual_des', 'descripcion_relato', 'in_ubpd']
 
 # Crear una copia explícita del DataFrame
 df_rsb = df_rsb[selected_columns].copy()
 
 # Ordenar el DataFrame
-df_rsb.sort_values(['tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre', 'segundo_nombre',
-                         'primer_apellido', 'segundo_apellido', 'documento', 'sexo', 'iden_pertenenciaetnica',
-                         'fecha_nacimiento', 'fecha_desaparicion', 'edad', 'pais_ocurrencia',
-                         'codigo_dane_departamento', 'departamento_ocurrencia', 'codigo_dane_municipio',
-                         'municipio_ocurrencia'] + th_columns + pres_resp_columns + ['situacion_actual_des', 'descripcion_relato',
-                         'in_ubpd'], inplace=True)
+df_rsb.sort_values([
+    'tabla_origen', 'codigo_unico_fuente', 'nombre_completo', 'primer_nombre',
+    'segundo_nombre',
+    'primer_apellido', 'segundo_apellido', 'documento', 'sexo',
+    'iden_pertenenciaetnica',
+    'fecha_nacimiento', 'fecha_desaparicion', 'edad', 'pais_ocurrencia',
+    'codigo_dane_departamento', 'departamento_ocurrencia',
+    'codigo_dane_municipio',
+    'municipio_ocurrencia'] + th_columns + pres_resp_columns + [
+        'situacion_actual_des', 'descripcion_relato', 'in_ubpd'], inplace=True)
 
 # Crear la variable temporal 'nonmiss' utilizando rownonmiss
-selected_nonmiss_columns = ['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'documento',
-                             'sexo', 'iden_pertenenciaetnica', 'fecha_nacimiento', 'fecha_desaparicion', 'edad',
-                             'pais_ocurrencia', 'codigo_dane_departamento', 'codigo_dane_municipio', 'TH_DF', 'TH_SE',
-                             'TH_RU', 'TH_OTRO'] + pres_resp_columns + ['situacion_actual_des', 'descripcion_relato', 'in_ubpd']
+selected_nonmiss_columns = [
+    'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
+    'documento',
+    'sexo', 'iden_pertenenciaetnica', 'fecha_nacimiento',
+    'fecha_desaparicion', 'edad',
+    'pais_ocurrencia', 'codigo_dane_departamento', 'codigo_dane_municipio',
+    'TH_DF', 'TH_SE',
+    'TH_RU', 'TH_OTRO'] + pres_resp_columns + [
+        'situacion_actual_des', 'descripcion_relato', 'in_ubpd']
 
 df_rsb['nonmiss'] = df_rsb[selected_nonmiss_columns].notnull().all(axis=1)
 
 
 # Ordenar el DataFrame
-df_rsb.sort_values(['codigo_unico_fuente', 'documento', 'nonmiss'], ascending=[True, False, False], inplace=True)
+df_rsb.sort_values(
+    ['codigo_unico_fuente', 'documento', 'nonmiss'],
+    ascending=[True, False, False], inplace=True)
 
-#  Mantener solo la primera observación por cada valor único en 'codigo_unico_fuente'
+#  Mantener solo la primera observación por cada valor
+# único en 'codigo_unico_fuente'
 # la comento para llegar con todos los registros al final
 df_rsb = df_rsb.groupby('codigo_unico_fuente').head(1)
 
@@ -590,9 +643,10 @@ df_rsb.drop('nonmiss', axis=1, inplace=True)
 # Ordenar DataFrame por 'codigo_unico_fuente'
 df_rsb.sort_values(['codigo_unico_fuente'], inplace=True)
 
-#Definición de ruta y exportacion de dataframe actual
+# Definición de ruta y exportacion de dataframe actual
 # Guardar el DataFrame en un archivo
-csv_file_path = os.path.join(DIRECTORY_PATH, "archivos depurados", "BD_UBPD_RSB.csv")
+csv_file_path = os.path.join(
+    DIRECTORY_PATH, "archivos depurados", "BD_UBPD_RSB.csv")
 df_rsb.to_csv(csv_file_path, index=False)
 
 
@@ -600,14 +654,15 @@ DB_SCHEMA = "version5"
 DB_TABLE = "BD_UBPD_RSB"
 
 with engine.connect() as conn, conn.begin():
-    #conn.execute(f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{DB_SCHEMA}') BEGIN EXEC('CREATE SCHEMA {DB_SCHEMA}') END")
-    df_rsb.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
+    df_rsb.to_sql(name=DB_TABLE, con=engine,
+                  schema=DB_SCHEMA, if_exists='replace', index=False,
+                  chunksize=chunk_size)
 
 nrow_df = len(df_rsb)
-print("Registros identificados:",nrow_df)
+print("Registros identificados:", nrow_df)
 
 nrow_df = len(df_rsb_copy)
-print("Registros no identificados:",nrow_df)
+print("Registros no identificados:", nrow_df)
 
 # Registra el tiempo de finalización
 end_time = time.time()
@@ -623,7 +678,7 @@ log = {
 }
 
 log_file_path = os.path.join(
-    DIRECTORY_PATH, "log", "resultado_df_inml_cad.yaml")
+    DIRECTORY_PATH, "log", "resultado_rsb.yaml")
 with open(log_file_path, 'w') as file:
     yaml.dump(log, file)
 # Calcula el tiempo transcurrido

@@ -301,6 +301,6 @@ log = {
 }
 
 log_file_path = os.path.join(
-    DIRECTORY_PATH, "log", "resultado_df_inml_cad.yaml")
+    DIRECTORY_PATH, "log", "resultado_macro_003.yaml")
 with open(log_file_path, 'w') as file:
     yaml.dump(log, file)

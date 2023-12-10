@@ -1,10 +1,13 @@
 import pandas as pd
 
-def asigna_aparecio_muerto(df : pd ):
+
 # Crea un diccionario con los reemplazos
+def asigna_aparecio_muerto(df: pd):
     reemplazos = {
-        "009509":{"situacion_actual_des":"Apareció Muerto", "documento":"91092274301"},
-        "137587":{"situacion_actual_des":"Apareció Muerto", "documento":"1060207279"},
+        "009509": {"situacion_actual_des": "Apareció Muerto",
+                   "documento": "91092274301"},
+        "137587": {"situacion_actual_des": "Apareció Muerto",
+                   "documento": "1060207279"},
         "009063":{"situacion_actual_des":"Apareció Muerto", "documento":"820445"},
         "008416":{"situacion_actual_des":"Apareció Muerto", "documento":"4572934"},
         "125357":{"situacion_actual_des":"Apareció Muerto", "documento":"903939"},
@@ -44,7 +47,8 @@ def asigna_aparecio_muerto(df : pd ):
     
     # Itera sobre el diccionario y realiza los reemplazos en el DataFrame
     for codigo, datos_reemplazo in reemplazos.items():
-        df.loc[df['codigo_unico_fuente'] == codigo, ['situacion_actual_des', 'documento']] = datos_reemplazo.values()
+        df.loc[df['codigo_unico_fuente'] == codigo,
+               ['situacion_actual_des', 'documento']] = datos_reemplazo.values()
     
     reemplazos = {}
     reemplazos = {

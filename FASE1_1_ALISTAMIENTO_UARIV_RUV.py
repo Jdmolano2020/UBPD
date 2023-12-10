@@ -267,9 +267,9 @@ homologacion.fecha.fechas_validas(df_uariv, fecha_dia='fecha_ocur_dia',
                                   fechat='fecha_desaparicion')
 
 # Reemplazar si la longitud no es 4 con cadena vacía
-df_uariv['fecha_ocur_anio'] = df_uariv['fecha_ocur_anio'].apply(
-    lambda x: '' if (isinstance(x, int) or isinstance(x, float)) and
-    len(str(x)) != 4 else x)
+# df_uariv['fecha_ocur_anio'] = df_uariv['fecha_ocur_anio'].apply(
+#     lambda x: '' if (isinstance(x, int) or isinstance(x, float)) and
+#     len(str(x)) != 4 else x)
 
 # Definir los valores a considerar como 'sin información' en actores
 no_information_actors = [
@@ -382,6 +382,7 @@ homologacion.nombres.nombres_validos(df_uariv,
 df_uariv.rename(columns={'VILB_DOCUMENTO': 'documento'}, inplace=True)
 # Documento de identificación
 homologacion.documento.documento_valida(df_uariv, documento='documento')
+
 df_uariv['VILB_FECHANACIMIENTO_'] = df_uariv['VILB_FECHANACIMIENTO']
 df_uariv['VILB_FECHANACIMIENTO'] = pd.to_datetime(
     df_uariv['VILB_FECHANACIMIENTO'], errors='coerce', format="%d/%m/%Y")

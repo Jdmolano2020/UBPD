@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
 
-def corrige_fecha_ocurrencia(df : pd ):
+
 # Crea un diccionario con los reemplazos
+def corrige_fecha_ocurrencia(df: pd):
     # Mapeo de fechas
     date_mapping = {
         "01/01/0001": "01/01/2001",
@@ -44,4 +45,5 @@ def corrige_fecha_ocurrencia(df : pd ):
     }
 
 # Aplica el mapeo a la columna VILB_FECHAOCURRENCIA
-    df['VILB_FECHAOCURRENCIA'] = df['VILB_FECHAOCURRENCIA'].map(date_mapping).fillna(df['VILB_FECHAOCURRENCIA'])
+    df['VILB_FECHAOCURRENCIA'] = df['VILB_FECHAOCURRENCIA'].map(
+            date_mapping).fillna(df['VILB_FECHAOCURRENCIA'])

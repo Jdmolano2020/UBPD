@@ -167,12 +167,6 @@ df_003['fecha_ocur_mes'] = pd.to_numeric(df_003['fecha_ocur_mes'],
                                          errors='coerce')
 df_003['fecha_ocur_dia'] = pd.to_numeric(df_003['fecha_ocur_dia'],
                                          errors='coerce')
-homologacion.fecha.fechas_validas(df_003, fecha_dia='fecha_ocur_dia',
-                                  fecha_mes='fecha_ocur_mes',
-                                  fecha_anio='fecha_ocur_anio',
-                                  fecha='fecha_desaparicion_dtf',
-                                  fechat='fecha_desaparicion')
-
 # tratamiento a fecha ocur anio para transformaciones
 # Reemplazar "." con cadena vacía
 df_003['fecha_ocur_anio'] = df_003['fecha_ocur_anio'].replace('.', '')
@@ -194,13 +188,19 @@ df_003['fecha_ocur_anio'] = df_003['fecha_ocur_anio'].apply(
     lambda x: x.replace("159", "195", 1) if isinstance(x, str)
     and x.startswith("159") else x)
 
-df_003['fecha_ocur_anio_dtf'] = pd.to_numeric(df_003['fecha_ocur_anio'],
-                                              errors='coerce')
+homologacion.fecha.fechas_validas(df_003, fecha_dia='fecha_ocur_dia',
+                                  fecha_mes='fecha_ocur_mes',
+                                  fecha_anio='fecha_ocur_anio',
+                                  fecha='fecha_desaparicion_dtf',
+                                  fechat='fecha_desaparicion')
 
-df_003['fecha_desaparicion_dtf'] = df_003[
-    'fecha_desaparicion_dtf'].dt.strftime('%d')
+# df_003['fecha_ocur_anio_dtf'] = pd.to_numeric(df_003['fecha_ocur_anio'],
+#                                               errors='coerce')
 
-df_003.drop(columns=['fecha_ocur_anio_dtf'], inplace=True)
+# df_003['fecha_desaparicion_dtf'] = df_003[
+#     'fecha_desaparicion_dtf'].dt.strftime('%d')
+
+# df_003.drop(columns=['fecha_ocur_anio_dtf'], inplace=True)
 
 # Datos sobre las personas dadas por desparecidas
 # Renombre columnas

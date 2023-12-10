@@ -115,13 +115,18 @@ n_personas = pd.read_sql(
     "select count(*) from [dbo].[V_CNMH_SE]", engine).iloc[0, 0]
 # Obtener el número de casos sin personas
 n_casos_sin_personas = pd.read_sql(
-    "select count(*) from [dbo].[V_CNMH_SE_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])", engine).iloc[0, 0]
+    """select count(*) from [dbo].[V_CNMH_SE_C]
+    where IdCaso not in (select IdCaso from [dbo].[V_CNMH_RU])""",
+    engine).iloc[0, 0]
 # Obtener los casos sin personas
 casos_sin_personas = pd.read_sql(
-    "select * from [dbo].[V_CNMH_SE_C] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_SE_C])", engine)
+    """select * from [dbo].[V_CNMH_SE_C]
+    where IdCaso not in (select IdCaso from [dbo].[V_CNMH_SE_C])""", engine)
 # Obtener el número de personas sin casos
 n_personas_sin_casos = pd.read_sql(
-    "select count(*) from [dbo].[V_CNMH_SE] where IdCaso not in (select IdCaso from [dbo].[V_CNMH_SE])", engine).iloc[0, 0]
+    """select count(*) from [dbo].[V_CNMH_SE]
+    where IdCaso not in (select IdCaso from [dbo].[V_CNMH_SE])""",
+    engine).iloc[0, 0]
 # Limpieza de nombres de columnas (clean_names no es necesario en pandas)
 cnmh.columns = cnmh.columns.str.lower()
 # Creación del ID único para cada registro
@@ -435,10 +440,11 @@ cnmh['documento_TI_10_11_caract'] = np.where(
     ~((cnmh['documento'].str.len() == 10) |
       (cnmh['documento'].str.len() == 11)) &
     (cnmh['tipo_documento'] == "TARJETA DE IDENTIDAD"), 1, 0)
-cnmh['fecha_nacimiento'] =  pd.to_datetime(
+cnmh['fecha_nacimiento'] = pd.to_datetime(
     cnmh['fecha_nacimiento'], format='%Y-%m-%d', errors='coerce')
 cnmh['documento_TI_11_caract_fecha_nac'] = np.where(
-    ~((cnmh['documento'].str.slice(0, 6) == cnmh['fecha_nacimiento'].dt.strftime('%y%m%d')) &
+    ~((cnmh['documento'].str.slice(0, 6) == cnmh[
+        'fecha_nacimiento'].dt.strftime('%y%m%d')) &
       (cnmh['documento'].str.len() == 11) &
       (cnmh['tipo_documento'] == "TARJETA DE IDENTIDAD")), 1, 0)
 
@@ -470,9 +476,9 @@ cnmh['documento'] = pd.to_numeric(cnmh['documento'], errors='coerce')
 ti_mujer_consistente = ["1", "3", "5", "7", "9"]
 cnmh['documento_TI_mujer_consistente'] = np.where(
     (cnmh['documento'].notna()) &  # Excluye los valores NaN
-    (~cnmh['documento'].astype(str).str[9:10].isin(ti_mujer_consistente)) & 
-    (cnmh['documento'].astype(str).str.len() == 11) & 
-    (cnmh['tipo_documento'] == "TARJETA DE IDENTIDAD") & 
+    (~cnmh['documento'].astype(str).str[9:10].isin(ti_mujer_consistente)) &
+    (cnmh['documento'].astype(str).str.len() == 11) &
+    (cnmh['tipo_documento'] == "TARJETA DE IDENTIDAD") &
     (cnmh['sexo'] == "M"),  1, 0)
 ti_hombre_consistente = ["2", "4", "6", "8", "0"]
 cnmh['documento_TI_hombre_consistente'] = np.where(
@@ -540,7 +546,8 @@ cnmh['edad'] = np.where(
     (cnmh['fecha_ocur_anio'].isna() | cnmh['anio_nacimiento'].isna()),
     np.nan,
     np.where(
-        cnmh['fecha_ocur_anio'].astype(float) <= cnmh['anio_nacimiento'].astype(float),
+        cnmh['fecha_ocur_anio'].astype(float) <= cnmh[
+            'anio_nacimiento'].astype(float),
         np.nan,
         cnmh['fecha_ocur_anio'].astype(float) -
         cnmh['anio_nacimiento'].astype(float)))

@@ -259,9 +259,12 @@ df['edad'] = np.where((df['edad_des_inf'] == 0) &
 # #df.drop(columns=['edad_des_inf', 'edad_des_sup'], inplace=True)
 # Calcular edad_desaparicion_est y detectar inconsistencias
 df['edad_desaparicion_est'] = (
-    (df['fecha_desaparicion_dtf'].dt.year - df['fecha_nacimiento_dft'].dt.year) -
-    ((df['fecha_desaparicion_dtf'].dt.month - df['fecha_nacimiento_dft'].dt.month) +
-    (df['fecha_desaparicion_dtf'].dt.day - df['fecha_nacimiento_dft'].dt.day)) / 12).round()
+    (df['fecha_desaparicion_dtf'].dt.year - df[
+        'fecha_nacimiento_dft'].dt.year) -
+    ((df['fecha_desaparicion_dtf'].dt.month - df[
+        'fecha_nacimiento_dft'].dt.month) +
+     (df['fecha_desaparicion_dtf'].dt.day - df[
+        'fecha_nacimiento_dft'].dt.day)) / 12).round()
 df['dif_edad'] = np.abs(df['edad_desaparicion_est'] - df['edad'])
 p90 = df['dif_edad'].quantile(0.90)
 df['inconsistencia_fechas'] = np.where(
@@ -440,11 +443,8 @@ df.loc[(df['primer_nombre'].isna()) &
 # Guardar las filas marcadas como rni en un archivo
 df_rni = df[df['rni'] == 1]
 nrow_df_no_ident = len(df_rni)
-db_url = "mssql+pyodbc://userubpd:J3mc2005.@LAPTOP-V6LUQTIO\SQLEXPRESS/ubpd_base?driver=ODBC+Driver+17+for+SQL+Server"
-engine = create_engine(db_url)
-
 # #df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
-chunk_size = 1000  # ajusta el tamaño según tu necesidad
+chunk_size = 1000
 df_rni.to_sql('BD_ICMP_PNI', con=engine, if_exists='replace', index=False,
               chunksize=chunk_size)
 # #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False)

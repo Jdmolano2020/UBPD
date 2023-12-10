@@ -1,6 +1,7 @@
 {
-"DIRECTORY_PATH": "C:/Users/HP/Documents/UBPD/HerramientaAprendizaje/Fuentes/OrquestadorUniverso",
-"DB_SERVER": "LAPTOP-V6LUQTIO\\SQLEXPRESS",
-"DB_USERNAME": "userubpd",
-"DB_PASSWORD": "J3mc2005.">>>>> 8a500f81feecd5da26fbc1fe11ecd774315e7ad7
+"DIRECTORY_PATH": "C:/A_UBPD/Fuentes/OrquestadorNatalia/",
+"DB_SERVER": "localhost",
+"DB_INSTANCE": "SQLEXP2022",
+"DB_USERNAME": "sa",
+"DB_PASSWORD": "Clave2022"
 }

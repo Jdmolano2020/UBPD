@@ -70,10 +70,10 @@ engine = create_engine(db_url)
 # Cargue de datos
 query = "EXECUTE CONSULTA_INML_DES"
 df_rnd = pd.read_sql_query(query, engine)
-#185778
+nrow_df_rnd_ini = len(df_rnd)
 
 # Guardar el DataFrame en un archivo
-archivo_csv = os.path.join("fuentes secundarias",
+archivo_csv = os.path.join(DIRECTORY_PATH , "fuentes secundarias",
                            "V_INML_RND.csv")
 df_rnd.to_csv(archivo_csv, index=False)
 # Cambiar directorio de trabajo
@@ -159,7 +159,7 @@ df_rnd['tabla_origen'] = 'INML_DES'
 df_rnd['in_inml_des'] = 1
 
 dane = pd.read_stata(
-    "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
+    DIRECTORY_PATH + "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
 
 variables_limpieza_dane = ["departamento", "municipio"]
 # Aplicar transformaciones a las columnas de tipo 'str'
@@ -182,7 +182,7 @@ df_rnd = pd.merge(df_rnd, dane, how='left',
               right_on=['departamento', 'municipio'])
 
 dane_corregir = pd.read_csv(
-    "fuentes secundarias/tablas complementarias/CorrecionMunicipioRnd.csv", sep = ";")
+    DIRECTORY_PATH + "fuentes secundarias/tablas complementarias/CorrecionMunicipioRnd.csv", sep = ";")
 df_rnd = pd.merge(df_rnd, dane_corregir, how='left',
               left_on=['departamento_desaparicion',
                        'municipio_desaparicion'],
@@ -272,12 +272,31 @@ df_rnd['descripcion_relato'] = df_rnd['descripcion_relato'].str.upper()
 # Nombres y apellidos
 df_rnd.rename(columns={'nombres': 'nombre_completo'}, inplace=True)
 
+df_rnd_copy=df_rnd.copy()
+###############################
+#df_rnd=df_rnd_copy.copy()
+
+cols_nombre = ['primer_apellido', 'segundo_apellido']
+    # Inicializa la columna nombre_completo con el valor de primer_nombre
+df_rnd['nombre_completo_'] = df_rnd['nombre_completo']
+
+for col in cols_nombre:
+    df_rnd['nombre_completo_'] = df_rnd['nombre_completo_'] + " " + df_rnd[col].fillna("")
+
+df_rnd['nombre_completo_'] = df_rnd['nombre_completo_'].str.strip()  # Eliminar espacios en blanco al principio y al final
+df_rnd['nombre_completo_'] = df_rnd['nombre_completo_'].str.replace('  ', ' ', regex=True)  # Reemplazar espacios dobles por espacios simples
+# Eliminar columna nombre_completo original
+df_rnd.drop(columns=['nombre_completo'], inplace=True)
+# Renombrar columna
+df_rnd.rename(columns={'nombre_completo_': 'nombre_completo'}, inplace=True)
+#############################
+
 df_rnd[['primer_nombre',
-    'segundo_nombre',
-    'primer_apellido',
-    'segundo_apellido']] = df_rnd['nombre_completo'].apply(
-          lambda x: pd.Series(
-              homologacion.nombre_completo.limpiar_nombre_completo(x)))
+        'segundo_nombre',
+        'primer_apellido',
+        'segundo_apellido']] = df_rnd['nombre_completo'].apply(
+    lambda x: pd.Series(
+        homologacion.nombre_completo.limpiar_nombre_completo(x)))
 
 # Corrección del uso de artículos y preposiciones en los nombres
 # Eliminar nombres y apellidos que solo tienen una letra inicial
@@ -355,7 +374,7 @@ df_rnd['situacion_actual_des'] = df_rnd['situacion_actual_des'].replace(
 #  a otras entidades)
 # Crear una nueva columna 'non_miss' que cuenta la cantidad
 # de columnas no nulas para cada fila
-nrow_df_fin = len(df_rnd)
+
 df_rnd['non_miss'] = df_rnd[['primer_nombre', 'segundo_nombre',
                      'primer_apellido',
                      'segundo_apellido']].count(axis=1)
@@ -366,6 +385,7 @@ df_rnd['rni'] = 0
 # Marcar filas con menos de 2 columnas no nulas
 # (debes ajustar el valor 2 según tus criterios)
 df_rnd.loc[df_rnd['non_miss'] < 2, 'rni'] = 1
+#######185778
 # migrado 541
 df_rnd.loc[(df_rnd['primer_nombre'] == "") |
        (df_rnd['primer_apellido'] == ""), 'rni'] = 1
@@ -494,13 +514,13 @@ df_rnd.loc[(df_rnd['clasificacion_desaparicion'] == "DESASTRE NATURAL") |
 # Guardar las filas marcadas como rni en un archivo
 df_rnd_rni = df_rnd[df_rnd['rni'] == 1]
 nrow_df_rnd_no_ident = len(df_rnd_rni)
-# #df_rni.to_stata("archivos depurados/BD_FGN_INACTIVOS_PNI.dta")
-df_rnd_rni.to_sql('BD_INML_RND_PNI', con=engine, if_exists='replace', index=False)
-# #df_rni.to_csv("archivos depurados/BD_ICMP_PNI.csv", index=False)
+DB_TABLE = "BD_INML_RND_PNI"
+
+with engine.connect() as conn, conn.begin():
+    df_rnd_rni.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
+    
 # Eliminar las filas marcadas como rni del DataFrame original
 df_rnd = df_rnd[df_rnd['rni'] == 0]
-nrow_df = len(df_rnd)
-print("Registros despues eliminar RNI:", nrow_df)
 df_rnd.drop(columns=['non_miss', 'rni'], inplace=True)
 
 cols_to_clean = ['situacion_actual_des']
@@ -508,6 +528,11 @@ for col in cols_to_clean:
     df_rnd[col] = df_rnd[col].fillna("")
 # 5. Identificación de registros únicos
 # Seleccionar las columnas que deseas mantener
+
+df_rnd.rename(columns={
+    'departamento': 'departamento_ocurrencia',
+    'municipio': 'municipio_ocurrencia'
+}, inplace=True)
 
 columnas = ['tabla_origen', 'codigo_unico_fuente', 'nombre_completo',
             'primer_nombre', 'segundo_nombre', 'primer_apellido',
@@ -540,14 +565,21 @@ df_rnd['non_miss'] = df_rnd[['primer_nombre', 'segundo_nombre',
                      'descripcion_relato']].count(axis=1)
 # Ordenar el DataFrame por 'codigo_unico_fuente', 'documento' y 'nonmiss'
 df_rnd.sort_values(by=['codigo_unico_fuente', 'documento', 'non_miss'],
-               ascending=[True, True], inplace=True)
+               ascending=[True, True, False], inplace=True)
 # Mantener solo el primer registro para cada 'codigo_unico_fuente'
 df_rnd.drop_duplicates(subset=['codigo_unico_fuente'], keep='first', inplace=True)
 nrow_df_rnd_ident = len(df_rnd)
+nrow_df_rnd_fin = len(df_rnd)
 n_duplicados = nrow_df_rnd_ini - nrow_df_rnd_ident
 print("Registros despues eliminar duplicados por codigo_unico_fuente:",
       nrow_df_rnd_ident)
-df_rnd.to_sql('BD_INML_RND', con=engine, if_exists='replace', index=False)
+
+DB_TABLE = "BD_INML_RND"
+
+with engine.connect() as conn, conn.begin():
+    df_rnd.to_sql(name=DB_TABLE, con=engine, schema=DB_SCHEMA, if_exists='replace', index=False)
+    
+df_rnd.to_sql(DB_TABLE, con=engine, if_exists='replace', index=False)
 fecha_fin = datetime.now()
 
 log = {

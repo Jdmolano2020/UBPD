@@ -73,7 +73,7 @@ df_rnd = pd.read_sql_query(query, engine)
 nrow_df_ini = len(df_rnd)
 print("Registros despues cargue fuente: ", nrow_df_ini)
 # Guardar el DataFrame en un archivo
-archivo_csv = os.path.join(DIRECTORY_PATH , "fuentes secundarias",
+archivo_csv = os.path.join(DIRECTORY_PATH, "fuentes secundarias",
                            "V_INML_RND.csv")
 df_rnd.to_csv(archivo_csv, index=False)
 # Cambiar directorio de trabajo
@@ -161,7 +161,8 @@ df_rnd['tabla_origen'] = 'INML_DES'
 df_rnd['in_inml_des'] = 1
 
 dane = pd.read_stata(
-    DIRECTORY_PATH + "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
+    DIRECTORY_PATH +
+    "fuentes secundarias/tablas complementarias/DIVIPOLA_municipios_122021.dta")
 
 variables_limpieza_dane = ["departamento", "municipio"]
 # Aplicar transformaciones a las columnas de tipo 'str'
@@ -184,7 +185,9 @@ df_rnd = pd.merge(df_rnd, dane, how='left',
                   right_on=['departamento', 'municipio'])
 
 dane_corregir = pd.read_csv(
-    DIRECTORY_PATH + "fuentes secundarias/tablas complementarias/CorrecionMunicipioRnd.csv", sep = ";")
+    DIRECTORY_PATH +
+    "fuentes secundarias/tablas complementarias/CorrecionMunicipioRnd.csv",
+    sep=";")
 df_rnd = pd.merge(df_rnd, dane_corregir, how='left',
                   left_on=['departamento_desaparicion',
                            'municipio_desaparicion'],
@@ -288,19 +291,19 @@ df_rnd['descripcion_relato'] = df_rnd['descripcion_relato'].str.upper()
 # Nombres y apellidos
 df_rnd.rename(columns={'nombres': 'nombre_completo'}, inplace=True)
 
-df_rnd_copy=df_rnd.copy()
-###############################
-#df_rnd=df_rnd_copy.copy()
-
 cols_nombre = ['primer_apellido', 'segundo_apellido']
-    # Inicializa la columna nombre_completo con el valor de primer_nombre
+# Inicializa la columna nombre_completo con el valor de primer_nombre
 df_rnd['nombre_completo_'] = df_rnd['nombre_completo']
 
 for col in cols_nombre:
-    df_rnd['nombre_completo_'] = df_rnd['nombre_completo_'] + " " + df_rnd[col].fillna("")
+    df_rnd['nombre_completo_'] = df_rnd[
+        'nombre_completo_'] + " " + df_rnd[col].fillna("")
 
-df_rnd['nombre_completo_'] = df_rnd['nombre_completo_'].str.strip()  # Eliminar espacios en blanco al principio y al final
-df_rnd['nombre_completo_'] = df_rnd['nombre_completo_'].str.replace('  ', ' ', regex=True)  # Reemplazar espacios dobles por espacios simples
+df_rnd['nombre_completo_'] = df_rnd['nombre_completo_'].str.strip()
+# Eliminar espacios en blanco al principio y al final
+df_rnd['nombre_completo_'] = df_rnd[
+    'nombre_completo_'].str.replace('  ', ' ', regex=True)
+# Reemplazar espacios dobles por espacios simples
 # Eliminar columna nombre_completo original
 df_rnd.drop(columns=['nombre_completo'], inplace=True)
 # Renombrar columna
@@ -394,7 +397,7 @@ df_rnd['situacion_actual_des'] = df_rnd['situacion_actual_des'].replace(
 #  a otras entidades)
 # Crear una nueva columna 'non_miss' que cuenta la cantidad
 # de columnas no nulas para cada fila
-
+nrow_df_fin = len(df_rnd)
 df_rnd['non_miss'] = df_rnd[['primer_nombre', 'segundo_nombre',
                              'primer_apellido',
                              'segundo_apellido']].count(axis=1)
@@ -405,8 +408,7 @@ df_rnd['rni'] = 0
 # Marcar filas con menos de 2 columnas no nulas
 # (debes ajustar el valor 2 según tus criterios)
 df_rnd.loc[df_rnd['non_miss'] < 2, 'rni'] = 1
-#######185778
-# migrado 541
+
 df_rnd.loc[(df_rnd['primer_nombre'] == "") |
            (df_rnd['primer_apellido'] == ""), 'rni'] = 1
 
